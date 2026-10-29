@@ -1,0 +1,14 @@
+# Réglages du kit d'urgence (modifiables sans redéployer le conteneur)
+titre_foyer: "Maison"
+
+kindle:
+  host: ""                    # IP fixe du Kindle (bail DHCP statique), ex. 192.168.1.50
+  port: 2222                  # serveur SSH de KOReader
+  user: root
+  dossier: /mnt/us/documents/Urgence
+
+# Intervalle (secondes) entre deux vérifications de la présence du Kindle
+scrutation_secondes: 60
+
+# Export du groupe de contacts « Urgence » (iCloud.com > Contacts > groupe > Exporter la vCard)
+contacts_vcf: contacts-urgence.vcf

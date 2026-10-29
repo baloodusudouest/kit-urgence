@@ -1,0 +1,23 @@
+# Numéros publics du livre 02 – Contacts.
+# Les lignes marquées « à vérifier » doivent être contrôlées (facture, site officiel) avant usage.
+categories:
+  - nom: "Urgences (gratuits, 24 h/24)"
+    numeros:
+      - { nom: "Numéro d'urgence européen", numero: "112", note: "fonctionne depuis tout réseau mobile" }
+      - { nom: "SAMU", numero: "15" }
+      - { nom: "Police / Gendarmerie", numero: "17" }
+      - { nom: "Pompiers", numero: "18" }
+      - { nom: "Urgences pour personnes sourdes ou malentendantes", numero: "114", note: "SMS ou application" }
+
+  - nom: "Réseaux"
+    numeros:
+      - { nom: "Enedis dépannage électricité", numero: "À COMPLÉTER", note: "09 726 750 suivi du numéro du département, à vérifier sur la facture" }
+      - { nom: "GRDF urgence sécurité gaz", numero: "0 800 47 33 33", note: "à vérifier" }
+      - { nom: "Eau : service des eaux", numero: "À COMPLÉTER", note: "numéro d'astreinte sur la facture d'eau" }
+
+  - nom: "Commune et santé"
+    numeros:
+      - { nom: "Mairie", numero: "À COMPLÉTER" }
+      - { nom: "Centre antipoison (Bordeaux)", numero: "05 56 96 40 80", note: "à vérifier" }
+      - { nom: "Médecin traitant", numero: "À COMPLÉTER" }
+      - { nom: "Pharmacie la plus proche", numero: "À COMPLÉTER" }

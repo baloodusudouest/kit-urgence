@@ -1,0 +1,24 @@
+# Guides officiels : copiés SANS modification dans le kit (livre 04).
+# Règle : chaque entrée doit avoir un éditeur ET une URL officielle, sinon elle est refusée.
+# Le fichier doit être déposé dans guides/ sous le nom indiqué.
+guides:
+  - titre: "Tous responsables - Face aux risques, agissons"
+    fichier: tous-responsables.pdf
+    editeur: "Gouvernement français (SGDSN)"
+    url: "https://www.sports.gouv.fr/es/guide-tous-responsables-face-aux-risques-agissons-10008"
+    date: "2025-11"
+    langue: fr
+
+  - titre: "FM 3-05.70 Survie (traduction non officielle)"
+    fichier: fm-3-05-70-survie-fr.epub
+    editeur: "Department of the Army (US) - traduction non officielle par IA"
+    url: "https://biotech.law.lsu.edu/blaw/DOD/fm3-05-70.pdf"   # à remplacer par la diffusion officielle
+    date: "2002-05"
+    langue: fr
+
+  - titre: "FM 3-05.70 Survival (original)"
+    fichier: fm-3-05-70-original-en.pdf
+    editeur: "Department of the Army (US)"
+    url: "https://biotech.law.lsu.edu/blaw/DOD/fm3-05-70.pdf"   # à remplacer par la diffusion officielle
+    date: "2002-05"
+    langue: en

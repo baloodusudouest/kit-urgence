@@ -1,0 +1,7 @@
+fastapi==0.115.6
+uvicorn==0.34.0
+paramiko==3.5.0
+vobject==0.9.9
+PyYAML==6.0.2
+weasyprint==63.1
+img2pdf==0.5.1

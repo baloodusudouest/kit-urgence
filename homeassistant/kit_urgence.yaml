@@ -1,0 +1,166 @@
+# Paquet Home Assistant du kit d'urgence numérique.
+# À placer dans /config/packages/kit_urgence.yaml, avec dans configuration.yaml :
+#   homeassistant:
+#     packages: !include_dir_named packages
+# Et dans secrets.yaml :
+#   kit_urgence_auth: "Bearer <même valeur que KIT_API_TOKEN>"
+#   kit_urgence_status_url: "http://<IP_DU_NAS>:8095/status"
+#   kit_urgence_generer_url: "http://<IP_DU_NAS>:8095/generer"
+#   kit_urgence_papier_url: "http://<IP_DU_NAS>:8095/papier/imprime"
+#   kit_urgence_vigilance: "sensor.<entité de vigilance Météo-France de ton département>"
+
+rest:
+  - resource: !secret kit_urgence_status_url
+    scan_interval: 60
+    timeout: 10
+    sensor:
+      - name: Kit urgence dernière génération
+        unique_id: kit_urgence_derniere_generation
+        device_class: timestamp
+        availability: "{{ value_json.derniere_generation is not none }}"
+        value_template: "{{ value_json.derniere_generation }}"
+      - name: Kit urgence dernière livraison
+        unique_id: kit_urgence_derniere_livraison
+        device_class: timestamp
+        availability: "{{ value_json.derniere_livraison is not none }}"
+        value_template: "{{ value_json.derniere_livraison }}"
+        json_attributes:
+          - derniers_envoyes
+          - derniere_verification
+      - name: Kit urgence dernière erreur
+        unique_id: kit_urgence_derniere_erreur
+        value_template: "{{ (value_json.derniere_erreur or 'aucune')[:250] }}"
+      - name: Kit urgence avertissements
+        unique_id: kit_urgence_avertissements
+        value_template: "{{ value_json.avertissements | count }}"
+        json_attributes:
+          - avertissements
+    binary_sensor:
+      - name: Kit urgence à jour
+        unique_id: kit_urgence_a_jour
+        value_template: "{{ value_json.a_jour }}"
+      - name: Kit urgence papier à imprimer
+        unique_id: kit_urgence_papier_a_imprimer
+        value_template: "{{ value_json.papier_a_imprimer }}"
+      - name: Kit urgence Kindle joignable
+        unique_id: kit_urgence_kindle_joignable
+        device_class: connectivity
+        value_template: "{{ value_json.kindle_joignable }}"
+
+rest_command:
+  kit_urgence_generer:
+    url: !secret kit_urgence_generer_url
+    method: post
+    headers:
+      authorization: !secret kit_urgence_auth
+    timeout: 300
+  kit_urgence_papier_imprime:
+    url: !secret kit_urgence_papier_url
+    method: post
+    headers:
+      authorization: !secret kit_urgence_auth
+
+template:
+  - button:
+      - name: Kit urgence générer
+        unique_id: kit_urgence_generer
+        icon: mdi:book-refresh
+        press:
+          - action: rest_command.kit_urgence_generer
+      - name: Kit urgence papier imprimé
+        unique_id: kit_urgence_papier_imprime
+        icon: mdi:printer-check
+        press:
+          - action: rest_command.kit_urgence_papier_imprime
+          - action: persistent_notification.dismiss
+            data:
+              notification_id: kit_urgence_papier
+
+automation:
+  - id: kit_urgence_rappel_mensuel
+    alias: "Kit d'urgence – rappel mensuel de synchronisation"
+    triggers:
+      - trigger: time
+        at: "19:00:00"
+    conditions:
+      - condition: template
+        value_template: "{{ now().day == 1 }}"
+    actions:
+      - action: persistent_notification.create
+        data:
+          notification_id: kit_urgence_rappel
+          title: "Kit d'urgence : rituel du mois"
+          message: >-
+            Charge le Kindle, désactive le mode avion, ouvre KOReader et démarre
+            le serveur SSH (Réseau > Serveur SSH). La synchronisation se fait seule
+            en une minute ; une notification confirmera la fin.
+
+  - id: kit_urgence_vigilance
+    alias: "Kit d'urgence – vigilance orange ou rouge"
+    triggers:
+      - trigger: state
+        entity_id: !secret kit_urgence_vigilance
+        to: ["Orange", "Rouge"]
+    actions:
+      - action: persistent_notification.create
+        data:
+          notification_id: kit_urgence_rappel
+          title: "Vigilance {{ trigger.to_state.state | lower }} : prépare le kit d'urgence"
+          message: >-
+            Charge complètement le Kindle, puis synchronise-le : mode avion désactivé,
+            KOReader ouvert, serveur SSH démarré. Vérifie que la version papier est
+            dans le tiroir.
+
+  - id: kit_urgence_livraison_ok
+    alias: "Kit d'urgence – livraison vérifiée"
+    triggers:
+      - trigger: state
+        entity_id: sensor.kit_urgence_derniere_livraison
+    conditions:
+      - condition: template
+        value_template: >-
+          {{ trigger.from_state is not none
+             and trigger.to_state.state not in ['unknown', 'unavailable'] }}
+    actions:
+      - action: persistent_notification.dismiss
+        data:
+          notification_id: kit_urgence_rappel
+      - action: persistent_notification.create
+        data:
+          notification_id: kit_urgence_livraison
+          title: "Kit d'urgence à jour sur le Kindle"
+          message: >-
+            Livraison vérifiée ({{ state_attr('sensor.kit_urgence_derniere_livraison',
+            'derniers_envoyes') | count }} livre(s) envoyé(s)). Coupe le serveur SSH
+            dans KOReader et remets le mode avion.
+
+  - id: kit_urgence_erreur
+    alias: "Kit d'urgence – erreur"
+    triggers:
+      - trigger: state
+        entity_id: sensor.kit_urgence_derniere_erreur
+    conditions:
+      - condition: template
+        value_template: "{{ trigger.to_state.state not in ['aucune', 'unknown', 'unavailable'] }}"
+    actions:
+      - action: persistent_notification.create
+        data:
+          notification_id: kit_urgence_erreur
+          title: "Kit d'urgence : erreur"
+          message: "{{ trigger.to_state.state }}"
+
+  - id: kit_urgence_papier
+    alias: "Kit d'urgence – version papier à imprimer"
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.kit_urgence_papier_a_imprimer
+        to: "on"
+    actions:
+      - action: persistent_notification.create
+        data:
+          notification_id: kit_urgence_papier
+          title: "Kit d'urgence : nouvelle version papier"
+          message: >-
+            Imprime output/papier/kit-urgence-a-imprimer.pdf (dossier kit-urgence du NAS),
+            range-la dans le tiroir de la cuisine, puis appuie sur le bouton
+            « Kit urgence papier imprimé ».

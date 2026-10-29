@@ -1,0 +1,21 @@
+# Service à ajouter dans une stack Docker Compose (ex. Portainer).
+# Les variables viennent des « Environment variables » de la stack (voir .env.example).
+services:
+  kit-urgence:
+    image: ghcr.io/baloodusudouest/kit-urgence:latest
+    container_name: kit-urgence
+    restart: unless-stopped
+    ports:
+      - "8095:8095"                       # API lue par Home Assistant
+    environment:
+      - TZ=Europe/Paris
+      - PAPIERS_PASSWORD=${KIT_PAPIERS_PASSWORD}   # mot de passe du livre 05 (secret)
+      - API_TOKEN=${KIT_API_TOKEN}                 # jeton exigé par les appels POST de HA
+      - LOG_LEVEL=INFO
+    volumes:
+      # Sources et kit généré : éditables depuis le réseau local
+      - ${KIT_DATA_DIR}:/data
+      # Clé SSH, empreintes, statut : hors de tout partage réseau
+      - ${KIT_STATE_DIR}:/state
+    labels:
+      - com.centurylinklabs.watchtower.enable=true

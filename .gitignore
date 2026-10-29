@@ -1,0 +1,5 @@
+.env
+__pycache__/
+*.pyc
+seed/guides/*.pdf
+seed/guides/*.epub
