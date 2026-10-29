@@ -22,4 +22,5 @@ chown -R "$PUID:$PGID" "$DATA" "$STATE"
 chmod 700 "$STATE"
 
 export HOME="$STATE"
-exec gosu "$PUID:$PGID" uvicorn app.main:app --host 0.0.0.0 --port 8095 --proxy-headers
+cd /app
+exec gosu "$PUID:$PGID" uvicorn app.main:app --app-dir /app --host 0.0.0.0 --port 8095 --proxy-headers
