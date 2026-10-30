@@ -118,8 +118,10 @@ automation:
         entity_id: sensor.kit_urgence_derniere_livraison
     conditions:
       - condition: template
+        # Ignore le passage « indisponible → valeur » d'un redémarrage de HA
         value_template: >-
           {{ trigger.from_state is not none
+             and trigger.from_state.state not in ['unknown', 'unavailable']
              and trigger.to_state.state not in ['unknown', 'unavailable'] }}
     actions:
       - action: persistent_notification.dismiss
@@ -141,7 +143,11 @@ automation:
         entity_id: sensor.kit_urgence_derniere_erreur
     conditions:
       - condition: template
-        value_template: "{{ trigger.to_state.state not in ['aucune', 'unknown', 'unavailable'] }}"
+        # Une nouvelle erreur seulement, pas la réapparition d'une ancienne au redémarrage
+        value_template: >-
+          {{ trigger.from_state is not none
+             and trigger.from_state.state not in ['unknown', 'unavailable']
+             and trigger.to_state.state not in ['aucune', 'unknown', 'unavailable'] }}
     actions:
       - action: persistent_notification.create
         data:
