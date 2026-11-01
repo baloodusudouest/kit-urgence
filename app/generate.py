@@ -253,6 +253,7 @@ def generer(cfg: Config, forcer: bool = False) -> dict:
 
     return status.update(
         derniere_generation=status.now(),
+        derniere_erreur=None,  # génération réussie : une ancienne erreur ne reste plus affichée dans HA
         version_nas=version,
         version_papier=entree_papier,
         livres=livres,

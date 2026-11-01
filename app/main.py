@@ -27,7 +27,7 @@ for bavard in ("weasyprint", "fontTools"):
 API_TOKEN = os.environ.get("API_TOKEN", "")
 _TRAVAIL = threading.Lock()  # une seule génération / livraison à la fois
 
-app = FastAPI(title="kit-urgence", version="1.0.0")
+app = FastAPI(title="kit-urgence", version="1.0.1")
 
 
 def _auth(authorization: str = Header(default="")) -> None:
