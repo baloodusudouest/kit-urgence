@@ -170,7 +170,7 @@ def test_deposer_ranger_retirer_remettre_un_papier(page, tmp_path):
     from tests.conftest import PNG
     fichier = tmp_path / nom
     fichier.write_bytes(PNG)
-    page.get_by_label(re.compile("Déposer des papiers")).set_input_files(str(fichier))
+    page.locator("input[type=file][aria-label='Déposer des papiers']").set_input_files(str(fichier))
     page.locator("#message-papiers", has_text="déposé").wait_for()
     liste = page.get_by_role("list", name="Papiers", exact=True)
     assert nom.split(".")[0] in liste.inner_text()
@@ -190,6 +190,31 @@ def test_deposer_ranger_retirer_remettre_un_papier(page, tmp_path):
     assert nom.split(".")[0] not in page.locator("main").inner_text()
 
 
+def test_glisser_deposer_un_papier(page):
+    """2.1.1 : un fichier lâché sur la zone est déposé ; un fichier d'un autre type est écarté."""
+    import base64
+    from tests.conftest import PNG
+    ouvrir_livre(page, "Papiers")
+    nom = "glisse-iphone.png" if page.mobile else "glisse-pc.png"
+    zone = page.get_by_role("group", name="Déposer des papiers")
+    donnees = page.evaluate_handle("""([b64, nom]) => {
+        const octets = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+        const dt = new DataTransfer()
+        dt.items.add(new File([octets], nom, { type: 'image/png' }))
+        dt.items.add(new File(['bonjour'], 'note.txt', { type: 'text/plain' }))
+        return dt
+    }""", [base64.b64encode(PNG).decode(), nom])
+    zone.dispatch_event("dragover", {"dataTransfer": donnees})
+    assert "Lâche ici" in zone.inner_text()
+    zone.dispatch_event("drop", {"dataTransfer": donnees})
+    page.locator("#message-papiers", has_text="1 fichier(s) déposé(s)").wait_for()
+    assert page.get_by_text("1 fichier(s) écarté(s)").count() == 1
+    liste = page.get_by_role("list", name="Papiers", exact=True)
+    assert nom.split(".")[0] in liste.inner_text() and "note" not in liste.inner_text()
+    liste.locator("li", has_text=nom.split(".")[0]).get_by_role("button", name="Retirer").click()   # on range derrière soi
+    page.locator("#message-papiers", has_text="mis de côté").wait_for()
+
+
 def test_corriger_un_numero(page):
     ouvrir_livre(page, "Contacts")
     mairie = page.get_by_role("list", name="Commune et santé").locator("> li", has_text="Mairie")
@@ -206,7 +231,8 @@ def test_un_guide_sans_adresse_officielle_n_entre_pas(page):
     page.get_by_role("button", name="Ajouter un guide").click()
     enregistrer = page.locator("#guides form").get_by_role("button", name="Enregistrer")
     assert enregistrer.is_disabled()                                # pas de fichier : pas de bouton
-    assert page.locator("#guides form input[required]").count() >= 4   # titre, éditeur, adresse, fichier
+    assert page.locator("#guides form input[required]").count() == 3   # titre, éditeur, adresse (le fichier : bouton éteint sans lui)
+    assert page.locator("#guides form").get_by_role("group", name="Fichier du guide").count() == 1
 
 
 def test_un_lien_de_a_traiter_ouvre_le_bon_texte(page):

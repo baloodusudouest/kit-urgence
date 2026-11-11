@@ -1,5 +1,13 @@
 # Changelog — kit-urgence
 
+## 2.1.1 — 2026-11-12
+- **Glisser-déposer** : les papiers et les fichiers des guides se déposent en les glissant depuis l'explorateur
+  sur la zone prévue (ou en les choisissant, comme avant). Plusieurs papiers à la fois. Un fichier d'un autre
+  type est écarté et annoncé ; le serveur recontrôle toujours le contenu.
+- L'image est de nouveau publiée sous `latest`, en plus de sa version : la stack du NAS suit `latest`.
+  Watchtower reste coupé pour le kit : la nouvelle image n'arrive que quand la stack est redéployée.
+- Tests : 39 pour le générateur et l'API, 27 d'écran.
+
 ## 2.1.0 — 2026-11-11
 Seconde image de la 2.0 : **l'écran écrit dans les sources du kit**. À déployer après avoir vu la 2.0.0 marcher.
 Aucune variable nouvelle.

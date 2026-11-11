@@ -2,7 +2,7 @@
 # Les variables viennent des « Environment variables » de la stack (voir .env.example).
 services:
   kit-urgence:
-    image: ghcr.io/baloodusudouest/kit-urgence:${KIT_VERSION}   # version choisie, plus de « latest »
+    image: ghcr.io/baloodusudouest/kit-urgence:latest   # ou une version précise (2.1.1) pour revenir en arrière
     container_name: kit-urgence
     restart: unless-stopped
     ports:

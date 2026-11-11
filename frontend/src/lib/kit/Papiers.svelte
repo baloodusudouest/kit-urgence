@@ -6,13 +6,13 @@
   import { api } from '$lib/api.js'
   import { poids, jour } from '$lib/format.js'
   import { Button } from '$lib/components/ui/button/index.js'
+  import Depot from './Depot.svelte'
 
   let { papiers, retires, lectureSeule = false, onchange, onerreur } = $props()
   let message = $state('')
   let attente = $state(false)
   let renomme = $state(null)    // { nom, nouveau }
   let aEffacer = $state(null)
-  let entree
 
   async function essayer(faire, dit) {
     attente = true; message = ''
@@ -21,7 +21,6 @@
   }
   const deposer = (fichiers) => essayer(async () => {
     for (const f of fichiers) await api.deposer('/api/papiers', f)
-    if (entree) entree.value = ''
   }, `${fichiers.length} fichier(s) déposé(s), rangé(s) à la fin du livre. Le livre sera refait à la prochaine fabrication.`)
   const deplacer = (i, pas) => {
     const noms = papiers.map((p) => p.nom)
@@ -60,10 +59,11 @@
   {:else}<li class="py-2 text-muted-foreground">Aucun papier déposé.</li>{/each}
 </ol>
 
-<label class="mt-3 flex flex-col gap-1 text-sm">Déposer des papiers (PDF, JPG ou PNG, 50 Mo au plus chacun)
-  <input bind:this={entree} type="file" multiple accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" disabled={attente || lectureSeule}
-         onchange={(e) => e.currentTarget.files.length && deposer([...e.currentTarget.files])}
-         class="block w-full rounded-lg border border-input bg-background p-2 file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-foreground" /></label>
+<div class="mt-3">
+  <Depot nom="Déposer des papiers" multiple accepte={['.pdf', '.jpg', '.jpeg', '.png']} desactive={attente || lectureSeule}
+         texte="Glisse tes papiers ici" aide="PDF, JPG ou PNG, 50 Mo au plus chacun. Ils sont rangés à la fin du livre."
+         onfichiers={deposer} />
+</div>
 {#if attente}<p class="mt-2 text-sm text-muted-foreground">En cours…</p>{/if}
 {#if message}<p class="mt-2 text-sm" role="status" id="message-papiers">{message}</p>{/if}
 

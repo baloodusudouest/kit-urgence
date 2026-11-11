@@ -2,7 +2,8 @@
 # puis publie ghcr.io/<propriétaire>/kit-urgence:<version>.
 # Les tests tournent dans l'image et non sur la machine de GitHub : c'est l'image qui part sur le NAS,
 # avec son pandoc et son qpdf à elle (qpdf 12, celui d'Ubuntu 26.04, refuse l'appel de chiffrement du kit).
-# Depuis la 2.0.0 l'étiquette « latest » n'est plus publiée : le NAS choisit sa version (KIT_VERSION).
+# Étiquettes : « latest » (2.1.1 : de nouveau publiée, la stack du NAS suit « latest »), la version et le commit.
+# Watchtower reste coupé pour ce service : « latest » n'arrive sur le NAS que quand la stack est redéployée.
 name: Image Docker
 on:
   push:
@@ -52,7 +53,7 @@ jobs:
       - name: Publication
         run: |
           depot=ghcr.io/${{ github.repository_owner }}/kit-urgence
-          for etiquette in "${{ steps.v.outputs.version }}" "sha-${{ github.sha }}"; do
+          for etiquette in latest "${{ steps.v.outputs.version }}" "sha-${{ github.sha }}"; do
             docker tag kit-urgence:essai "$depot:$etiquette"
             docker push "$depot:$etiquette"
           done

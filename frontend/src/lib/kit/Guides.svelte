@@ -3,6 +3,7 @@
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert'
   import { api } from '$lib/api.js'
   import { Button } from '$lib/components/ui/button/index.js'
+  import Depot from './Depot.svelte'
 
   let { guides, lectureSeule = false, onchange, onerreur } = $props()
   const VIDE = { titre: '', editeur: '', url: '', date: '', langue: 'fr' }
@@ -51,9 +52,12 @@
         </span>
       </div>
       {#if !g.present}
-        <label class="mt-2 flex flex-col gap-1">Déposer le fichier de ce guide{g.fichier ? ` (${g.fichier.split('.').pop().toUpperCase()} attendu)` : ''}
-          <input type="file" accept=".pdf,.epub" disabled={attente || lectureSeule} onchange={(e) => e.currentTarget.files[0] && joindre(g.indice, e.currentTarget.files[0])}
-                 class="block w-full rounded-lg border border-input bg-background p-2 file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-foreground" /></label>
+        <div class="mt-2">
+          <Depot nom={'Déposer le fichier de « ' + g.titre + ' »'} accepte={g.fichier ? ['.' + g.fichier.split('.').pop().toLowerCase()] : ['.pdf', '.epub']}
+                 desactive={attente || lectureSeule} texte="Glisse ici le fichier de ce guide"
+                 aide={g.fichier ? `${g.fichier.split('.').pop().toUpperCase()} attendu, 150 Mo au plus.` : 'PDF ou EPUB, 150 Mo au plus.'}
+                 onfichiers={(f) => joindre(g.indice, f[0])} />
+        </div>
       {/if}
       {#if edition?.indice === g.indice}{@render formulaire()}{/if}
     </li>
@@ -72,9 +76,10 @@
     <label class="flex flex-col gap-1">Date (facultative)<input bind:value={edition.date} maxlength="20" placeholder="2026-01" class={champ} /></label>
     <label class="flex flex-col gap-1">Langue<input bind:value={edition.langue} maxlength="10" class={champ} /></label>
     {#if edition.indice === null}
-      <label class="flex flex-col gap-1 md:col-span-2">Fichier (PDF ou EPUB, 150 Mo au plus)
-        <input type="file" accept=".pdf,.epub" required onchange={(e) => (fichier = e.currentTarget.files[0] || null)}
-               class="block w-full rounded-lg border border-input bg-background p-2 file:mr-3 file:rounded-md file:border-0 file:bg-card file:px-3 file:py-2 file:text-foreground" /></label>
+      <div class="md:col-span-2">
+        <Depot nom="Fichier du guide" accepte={['.pdf', '.epub']} texte={fichier ? `Fichier choisi : ${fichier.name}` : 'Glisse ici le fichier du guide'}
+               aide="PDF ou EPUB, 150 Mo au plus." onfichiers={(f) => (fichier = f[0])} />
+      </div>
     {/if}
     <div class="flex flex-wrap gap-2 md:col-span-2">
       <Button type="submit" disabled={attente || (edition.indice === null && !fichier)}>Enregistrer</Button>

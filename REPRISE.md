@@ -8,6 +8,7 @@ Format commun des applis : dépôt `socle`, `docs/format.md`.
 - **2.0.0** (11/11/2026) : interface en lecture, sécurité, contrôles. Publiée, **pas encore vue sur le NAS**.
 - **2.1.0** (11/11/2026) : les écritures (`app/ecrits.py`). Publiée, **pas encore vue sur le NAS**.
   À déployer après la 2.0.0, une fois celle-ci vue en vrai (Home Assistant, carnet, une livraison).
+- **2.1.1** (12/11/2026) : glisser-déposer (`frontend/src/lib/kit/Depot.svelte`) ; `latest` de nouveau publiée.
 - Idées gardées pour plus tard : dates d'expiration des papiers, batterie de la liseuse, renommer un texte.
 
 ## Ce qu'il ne faut pas casser
@@ -52,5 +53,5 @@ python -m pytest -q tests/interface
 ## Déployer
 
 Pousser sur `main` : l'image est construite, tous les tests tournent dedans, puis l'image `ghcr.io/baloodusudouest/kit-urgence:<version>` est
-publiée (version lue dans `app/__init__.py`). Dans Portainer : changer `KIT_VERSION`, mettre à jour la stack.
-Pas de `latest`, pas de Watchtower.
+publiée sous `latest` et sous sa version (lue dans `app/__init__.py`). Dans Portainer : redéployer la stack
+en retéléchargeant l'image. Pas de Watchtower pour ce service.
