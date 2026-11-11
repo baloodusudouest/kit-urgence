@@ -285,7 +285,11 @@ def api_fichier(nom: str):
 
 @app.get("/api/connexions")
 def api_connexions():
-    return etat.connexions(config.load(), sync.assurer_cle())
+    cfg = config.load()
+    joignable = sync.port_ouvert(cfg)            # l'écran Connexion regarde pour de bon, sans attendre la scrutation
+    if joignable != status.read().get("kindle_joignable"):
+        status.update(kindle_joignable=joignable, **({"kindle_vu_le": status.now()} if joignable else {}))
+    return etat.connexions(cfg, sync.assurer_cle())
 
 
 @app.get("/api/reglages")
@@ -367,6 +371,8 @@ def api_disparitions(corps: dict = Body(...)):
 
 @app.get("/{chemin:path}")
 def interface(chemin: str):
+    if chemin.startswith("api/"):
+        raise HTTPException(404, "Adresse inconnue.")
     fichier = (STATIQUE / chemin).resolve() if chemin else None
     if fichier and fichier.is_file() and STATIQUE.resolve() in fichier.parents:
         return FileResponse(fichier)

@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 seed/guides/*.pdf
 seed/guides/*.epub
+.pytest_cache/
+frontend/node_modules/
+app/static/

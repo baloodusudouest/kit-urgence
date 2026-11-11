@@ -101,6 +101,22 @@ Une livraison, dans cet ordre :
 5. Tests d'écran (PC et iPhone) contre un faux dossier et une fausse liseuse.
 6. Dockerfile (étape Node), workflow (étiquette par version, tests avant l'image), `homelab.yml`, `REPRISE.md`, `CHANGELOG.md`.
 
+## Décisions prises après le conseil (11/11/2026)
+
+Avis complet : `2.0-conseil.md`. Ce qui change par rapport au texte ci-dessus :
+
+- **Deux images** au lieu d'une : 2.0.0 (lecture, sécurité, contrôles), puis 2.1.0 (écritures).
+- **Contrôle après fabrication** : chaque livre est rouvert ; celui des papiers est déchiffré avec le mot de passe de la stack.
+- **Essai du kit** tous les six mois, quatre points à cocher ; sa date est dans la phrase d'état.
+- **Le kit ne retire jamais seul un livre** de la liseuse : il attend un oui à l'écran.
+- **Fraîcheur** : « contacts reçus le… », « liseuse vue le… », et une tuile au-delà de six et deux mois.
+- **Papier retiré** : mis de côté dans `/data/retires/` (hors de `papiers/`), visible à l'écran avec « Remettre » et « Effacer définitivement ».
+- **Versions** pour tout ce que l'appli réécrit, dans `/data/versions/` (et non sous `procedures/`, que le générateur surveille).
+- **Enregistrer ne fabrique pas** : le kit passe « à refabriquer » ; la fabrication se fait au bouton ou quand la liseuse se présente.
+- **Réimpression** : pas de « correction mineure » ; la tuile liste ce qui a changé depuis l'impression.
+- **Mots d'écran** : livres nommés par leur contenu, « Fabriquer » et « Livrer » expliqués, « Liseuse pas à jour ».
+- `/cle-publique` demande le jeton ; `latest` n'est plus publiée.
+
 ## Questions ouvertes pour le conseil
 
 1. **Supprimer un papier** : effacement réel, ou mise de côté dans un dossier `.retires/` vidé à la main ? Un scan d'identité qu'on croit retiré et qui reste sur le NAS, ou un scan retiré par erreur : lequel des deux risques pèse le plus ?

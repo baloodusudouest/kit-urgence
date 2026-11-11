@@ -11,6 +11,12 @@ Générateur d'un **kit d'urgence numérique** pour liseuse : il prépare sur un
 | 05 – Papiers (chiffré) | PDF AES-256 | scans PDF/JPG/PNG de `papiers/` (préfixer 01-, 02-… pour l'ordre) |
 | Version papier | PDF A4 | 00 + 01 + 02, dans `output/papier/` |
 
+## Interface (depuis la 2.0.0)
+
+`http://<IP_DU_NAS>:8095`, derrière le mot de passe commun. Quatre écrans : **À traiter** (ce qui manque pour que le kit soit bon), **Kit** (les livres, ce qu'ils contiennent, leur téléchargement), **Connexion** (liseuse, carnet, Home Assistant) et **Réglages**. Le format est celui des autres applis ; la couleur est le rouge brique.
+
+Trois garde-fous : chaque livre fabriqué est rouvert avant de remplacer l'ancien ; le kit ne retire jamais seul un livre de la liseuse ; un essai en vrai, liseuse en main, est demandé tous les six mois.
+
 ## Fonctionnement
 
 1. Au démarrage, le conteneur génère le kit dans `output/Urgence/`. Un livre n'est reconstruit que si ses sources ont changé.
@@ -23,7 +29,7 @@ Le conteneur adopte automatiquement le propriétaire du dossier de données : au
 ## Installation
 
 ### 1. Image
-Le workflow `.github/workflows/docker.yml` publie `ghcr.io/<propriétaire>/kit-urgence:latest` à chaque push sur `main` (linux/amd64).
+Le workflow `.github/workflows/docker.yml` lance les tests puis publie `ghcr.io/<propriétaire>/kit-urgence:<version>` à chaque push sur `main` (linux/amd64). Depuis la 2.0.0 il n'y a plus d'étiquette `latest` : la stack choisit `KIT_VERSION`.
 
 ### 2. Dossiers sur le NAS
 - Un dossier de données, par exemple `/volume1/homes/<utilisateur>/kit-urgence`, rempli automatiquement au premier démarrage avec des modèles (jamais écrasés ensuite).
@@ -31,10 +37,10 @@ Le workflow `.github/workflows/docker.yml` publie `ghcr.io/<propriétaire>/kit-u
 
 ### 3. Service Docker
 Ajouter le service de `docker-compose.yml` à la stack et renseigner les variables de `.env.example` :
-`KIT_DATA_DIR`, `KIT_STATE_DIR`, `KIT_PAPIERS_PASSWORD`, `KIT_API_TOKEN`.
+`KIT_VERSION`, `KIT_DATA_DIR`, `KIT_STATE_DIR`, `KIT_PAPIERS_PASSWORD`, `KIT_API_TOKEN` et le mot de passe commun `CARNET_PASSWORD` (obligatoires), `KIT_CARNET_URL` et `KIT_LECTURE_SEULE` (facultatifs).
 
 ### 4. Autoriser le conteneur sur le Kindle
-Ouvrir `http://<IP_DU_NAS>:8095/cle-publique`, puis ajouter la ligne affichée dans `koreader/settings/SSH/authorized_keys` (Kindle branché en USB, KOReader fermé).
+Ouvrir l'interface (`http://<IP_DU_NAS>:8095`), écran **Connexion › Liseuse**, copier la clé, puis l'ajouter dans `koreader/settings/SSH/authorized_keys` (Kindle branché en USB, KOReader fermé).
 
 ### 5. Remplir les sources
 - `config/config.yaml` : IP fixe du Kindle, nom du foyer.
@@ -57,7 +63,7 @@ Rappel le 1er du mois et en vigilance orange ou rouge : Kindle chargé → mode 
 | Méthode | Chemin | Rôle |
 | --- | --- | --- |
 | GET | `/status` | état complet (capteurs Home Assistant) |
-| GET | `/cle-publique` | clé SSH du conteneur |
+| GET | `/cle-publique` | clé SSH du conteneur (jeton requis) |
 | POST | `/generer` | régénération complète (jeton requis) |
 | POST | `/synchroniser` | livraison immédiate si le Kindle répond (jeton requis) |
 | POST | `/papier/imprime` | confirme l'impression de la version papier (jeton requis) |

@@ -226,7 +226,7 @@ def test_l_ecran_des_livres(ecran):
     assert d["papiers"] == [{"nom": "01-carte.png", "poids": d["papiers"][0]["poids"]}]
     assert [t["nom"] for t in d["textes"]][:2] == ["00-lisez-moi.md", "10-electricite.md"]
     assert "lectricit" in ecran.get("/api/textes/10-electricite.md").json()["contenu"]
-    assert ecran.get("/api/textes/..%2Fconfig%2Fconfig.yaml").status_code in (404, 401)
+    assert ecran.get("/api/textes/..%2Fconfig%2Fconfig.yaml").status_code == 404
 
 
 def test_lien_vers_carnet(ecran, monkeypatch):

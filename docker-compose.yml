@@ -2,15 +2,18 @@
 # Les variables viennent des « Environment variables » de la stack (voir .env.example).
 services:
   kit-urgence:
-    image: ghcr.io/baloodusudouest/kit-urgence:latest
+    image: ghcr.io/baloodusudouest/kit-urgence:${KIT_VERSION}   # version choisie, plus de « latest »
     container_name: kit-urgence
     restart: unless-stopped
     ports:
-      - "8095:8095"                       # API lue par Home Assistant
+      - "8095:8095"                       # interface, et API lue par Home Assistant
     environment:
       - TZ=Europe/Paris
-      - PAPIERS_PASSWORD=${KIT_PAPIERS_PASSWORD}   # mot de passe du livre 05 (secret)
-      - API_TOKEN=${KIT_API_TOKEN}                 # jeton exigé par les appels POST de HA
+      - KIT_PASSWORD=${CARNET_PASSWORD}            # mot de passe commun des applis : obligatoire
+      - PAPIERS_PASSWORD=${KIT_PAPIERS_PASSWORD}   # mot de passe du livre des papiers (secret)
+      - API_TOKEN=${KIT_API_TOKEN}                 # jeton de Home Assistant et de carnet : obligatoire
+      - KIT_CARNET_URL=${KIT_CARNET_URL:-}         # adresse de carnet dans le navigateur (lien « Ouvrir dans carnet »)
+      - KIT_LECTURE_SEULE=${KIT_LECTURE_SEULE:-}   # 1 : n'écrit ni sur la liseuse ni dans les sources
       - LOG_LEVEL=INFO
     volumes:
       # Sources et kit généré : éditables depuis le réseau local
@@ -18,4 +21,5 @@ services:
       # Clé SSH, empreintes, statut : hors de tout partage réseau
       - ${KIT_STATE_DIR}:/state
     labels:
-      - com.centurylinklabs.watchtower.enable=true
+      # Le kit écrit sur la liseuse : mises à jour à la main, en changeant KIT_VERSION
+      - com.centurylinklabs.watchtower.enable=false
