@@ -40,6 +40,16 @@ class Config:
         return os.environ.get("PAPIERS_PASSWORD", "")
 
 
+def mot_de_passe() -> str:
+    """Mot de passe commun de l'interface (KIT_PASSWORD). Sans lui, le kit refuse de démarrer."""
+    return os.environ.get("KIT_PASSWORD", "")
+
+
+def carnet_url() -> str:
+    """Adresse de carnet dans le navigateur, pour le lien « Ouvrir dans carnet » (facultative)."""
+    return os.environ.get("KIT_CARNET_URL", "").strip().rstrip("/")
+
+
 def load() -> Config:
     path = DATA / "config" / "config.yaml"
     raw = {}

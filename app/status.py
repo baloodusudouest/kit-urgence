@@ -24,6 +24,11 @@ DEFAULT = {
     "derniere_erreur": None,
     "avertissements": [],
     "livres": {},                     # nom -> sha256
+    # 2.0.0
+    "controle": None,                 # {le, ok, echecs:[{livre, raison}]} : livres rouverts après fabrication
+    "disparitions": [],               # livres qui ne sont plus attendus, gardés tant qu'un oui n'est pas donné
+    "kindle_vu_le": None,             # dernière fois où la liseuse a répondu
+    "papier_imprime_le": None,
 }
 
 

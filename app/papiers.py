@@ -50,7 +50,7 @@ def construire(dossier: Path, sortie: Path, mot_de_passe: str) -> int:
         )
         # Mot de passe passé par fichier d'arguments (mode 600) pour ne pas
         # apparaître dans la liste des processus.
-        owner = secrets.token_urlsafe(24)
+        owner = secrets.token_hex(24)   # jamais de « - » en tête : qpdf le prendrait pour une option
         args = tmp / "args"
         fd = os.open(args, os.O_WRONLY | os.O_CREAT, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as f:

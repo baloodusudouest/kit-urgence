@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 
 import yaml
 
-from . import contacts, papiers, status
+from . import contacts, controle, papiers, status
 from .config import ASSETS, DATA, STATE, Config
 
 TZ = ZoneInfo("Europe/Paris")
@@ -205,8 +205,12 @@ def generer(cfg: Config, forcer: bool = False) -> dict:
                     DATA / "papiers", c, cfg.papiers_password),
             }
 
-    # Construction des livres dont les entrées ont changé
+    # Construction des livres dont les entrées ont changé.
+    # 2.0.0 : chaque livre fabriqué est rouvert avant de remplacer l'ancien ; s'il est inutilisable,
+    # le dernier bon livre reste en place et l'échec est noté.
+    ancien_reg = _registre()
     nouveau_reg = {}
+    echecs: list[dict] = []
     for nom, info in attendus.items():
         cible = SORTIE / nom
         ancien = reg.get(nom)
@@ -214,24 +218,49 @@ def generer(cfg: Config, forcer: bool = False) -> dict:
             nouveau_reg[nom] = ancien
             continue
         tmp = SORTIE / f".{nom}.tmp"
-        info["construire"](tmp)
+        try:
+            info["construire"](tmp)
+            controle.verifier(nom, tmp, cfg.papiers_password, est_papiers=(nom == NOM_05),
+                              pages=len(docs) if nom == NOM_05 else None)
+        except Exception as exc:  # noqa: BLE001 — un livre raté ne doit pas arrêter les autres
+            tmp.unlink(missing_ok=True)
+            raison = str(exc) if isinstance(exc, controle.Echec) else f"fabrication impossible ({exc.__class__.__name__})"
+            echecs.append({"livre": nom, "raison": raison})
+            if cible.exists() and ancien_reg.get(nom):
+                # L'ancien livre reste, avec son ancienne empreinte d'entrée : il sera retenté
+                nouveau_reg[nom] = ancien_reg[nom]
+            continue
         tmp.replace(cible)
         nouveau_reg[nom] = {
             "entree": info["entree"], "sha": sha_fichier(cible),
             "date": maintenant.isoformat(timespec="seconds"),
         }
 
-    # Suppression des livres qui ne sont plus attendus
-    for p in SORTIE.iterdir():
-        if p.is_file() and p.name not in attendus and p.name != "manifest.json":
+    # Livres qui ne sont plus attendus. 2.0.0 : le kit ne retire jamais seul un livre (il serait
+    # ensuite effacé de la liseuse). Il le garde, le signale, et attend un oui donné à l'écran.
+    acceptees = set(status.read().get("disparitions_acceptees") or [])
+    disparitions: list[str] = []
+    for p in sorted(SORTIE.iterdir()):
+        if not p.is_file() or p.name in attendus or p.name == "manifest.json" or p.name.startswith("."):
+            continue
+        if p.name in acceptees:
             p.unlink()
+            continue
+        disparitions.append(p.name)
+        nouveau_reg[p.name] = ancien_reg.get(p.name) or {
+            "entree": "retiré", "sha": sha_fichier(p),
+            "date": datetime.fromtimestamp(p.stat().st_mtime, TZ).isoformat(timespec="seconds"),
+        }
+    for p in SORTIE.glob(".*.tmp"):
+        p.unlink(missing_ok=True)
 
     # Manifest : empreinte globale déterministe
     livres = {nom: nouveau_reg[nom]["sha"] for nom in sorted(nouveau_reg)}
     version = hashlib.sha256(json.dumps(livres, sort_keys=True).encode()).hexdigest()
     manifest = {"version": version, "livres": livres}
-    (SORTIE / "manifest.json").write_text(
-        json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    tmp_manifest = SORTIE / ".manifest.json.tmp"
+    tmp_manifest.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    tmp_manifest.replace(SORTIE / "manifest.json")
 
     # Version papier : 00 + 01 + 02, reconstruite seulement si ses entrées changent
     entree_papier = sha_entrees(
@@ -247,7 +276,16 @@ def generer(cfg: Config, forcer: bool = False) -> dict:
         if md_01:
             parties.append(texte(md_01))
         parties.append(contacts.markdown(vcf, publics))
-        pdf_papier("\n\n".join(parties), cible_papier)
+        tmp_papier = SORTIE_PAPIER / f".{NOM_PAPIER}.tmp"
+        try:
+            pdf_papier("\n\n".join(parties), tmp_papier)
+            controle.verifier(NOM_PAPIER, tmp_papier)
+            tmp_papier.replace(cible_papier)
+        except Exception as exc:  # noqa: BLE001
+            tmp_papier.unlink(missing_ok=True)
+            raison = str(exc) if isinstance(exc, controle.Echec) else f"fabrication impossible ({exc.__class__.__name__})"
+            echecs.append({"livre": NOM_PAPIER, "raison": raison})
+            entree_papier = reg.get("__papier__", {}).get("entree") or ancien_reg.get("__papier__", {}).get("entree")
     nouveau_reg["__papier__"] = {"entree": entree_papier}
     _sauver_registre(nouveau_reg)
 
@@ -259,7 +297,20 @@ def generer(cfg: Config, forcer: bool = False) -> dict:
         livres=livres,
         avertissements=avert,
         sources=sha_sources(cfg),
+        controle={"le": status.now(), "ok": not echecs, "echecs": echecs},
+        disparitions=disparitions,
+        disparitions_acceptees=[],
     )
+
+
+def instantane_papier(cfg: Config) -> dict:
+    """Empreinte de chaque source de la version papier, pour dire ce qui a changé depuis l'impression."""
+    proc_dir = DATA / "procedures"
+    photo = {f"Texte « {p.stem} »": sha_fichier(p) for p in sorted(proc_dir.glob("*.md"))}
+    photo["Contacts"] = sha_entrees(DATA / "config" / cfg.contacts_vcf)
+    photo["Numéros publics"] = sha_entrees(DATA / "config" / "numeros-publics.yaml")
+    photo["Nom du foyer"] = sha_entrees(cfg.titre_foyer)
+    return photo
 
 
 def sha_sources(cfg: Config) -> str:

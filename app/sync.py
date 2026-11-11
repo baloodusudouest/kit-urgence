@@ -17,6 +17,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
 from . import status
+from .garde import exiger_ecriture
 from .config import STATE, Config
 from .generate import SORTIE, sha_fichier
 
@@ -139,6 +140,7 @@ def _tailles_distantes(client, dest: str) -> dict:
 
 def livrer(cfg: Config) -> dict:
     """Envoie les livres modifiés, supprime les obsolètes et vérifie le résultat."""
+    exiger_ecriture("sur la liseuse")
     manifest_local = json.loads((SORTIE / "manifest.json").read_text(encoding="utf-8"))
     dest = cfg.kindle.dossier.rstrip("/")
     client = _connexion(cfg)
@@ -219,6 +221,31 @@ def livrer(cfg: Config) -> dict:
         derniere_verification=methode,
         derniers_envoyes=envoyes,
     )
+
+
+def comparer(cfg: Config) -> dict:
+    """« Vérifier » : relit les empreintes sur la liseuse et les compare au kit du NAS. N'écrit rien."""
+    manifest = json.loads((SORTIE / "manifest.json").read_text(encoding="utf-8"))["livres"]
+    dest = cfg.kindle.dossier.rstrip("/")
+    client = _connexion(cfg)
+    try:
+        distant = _empreintes_distantes(client, dest)
+        methode = "sha256"
+        if distant is None:                      # pas de sha256sum sur la liseuse : on compare les tailles
+            methode = "taille"
+            tailles = _tailles_distantes(client, dest)
+            distant = {n: (manifest[n] if n in manifest and (SORTIE / n).exists()
+                           and t == (SORTIE / n).stat().st_size else "autre") for n, t in tailles.items()}
+    finally:
+        client.close()
+    livres = {n: s for n, s in distant.items() if n.endswith(EXTENSIONS_LIVRES)}
+    return {
+        "methode": methode,
+        "identiques": sorted(n for n in manifest if livres.get(n) == manifest[n]),
+        "differents": sorted(n for n in manifest if n in livres and livres[n] != manifest[n]),
+        "absents": sorted(n for n in manifest if n not in livres),
+        "en_trop": sorted(n for n in livres if n not in manifest),
+    }
 
 
 def verifier_local() -> bool:

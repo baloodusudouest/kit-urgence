@@ -78,8 +78,9 @@ def lire_vcf(path: Path) -> list[dict]:
             morceaux = [a.street, f"{a.code} {a.city}".strip()]
             adresses.append(", ".join(m.strip() for m in morceaux if m and m.strip()))
         note = card.note.value.strip() if hasattr(card, "note") else ""
+        uid = card.uid.value.strip() if hasattr(card, "uid") else ""
         contacts.append({
-            "nom": nom or org or "(sans nom)", "organisation": org,
+            "uid": uid, "nom": nom or org or "(sans nom)", "organisation": org,
             "tels": tels, "emails": emails, "adresses": adresses, "note": note,
         })
     return sorted(contacts, key=lambda c: c["nom"].lower())
