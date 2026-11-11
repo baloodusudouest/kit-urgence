@@ -1,19 +1,23 @@
 <script>
   // « Kit » : les livres dans l'ordre de la liseuse, nommés par ce qu'ils contiennent.
-  // 2.0.0 : tout se lit ici ; déposer et écrire arrivent avec la 2.1.0.
+  // 2.1.0 : on y écrit les textes, on y corrige les numéros, on y dépose papiers et guides.
+  // Enregistrer ne fabrique rien : le kit passe « à refabriquer ».
   import { onMount } from 'svelte'
   import Lock from '@lucide/svelte/icons/lock'
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert'
   import { api } from '$lib/api.js'
   import { quand, poids, lienLivre } from '$lib/format.js'
   import { Button } from '$lib/components/ui/button/index.js'
+  import Textes from '$lib/kit/Textes.svelte'
+  import Numeros from '$lib/kit/Numeros.svelte'
+  import Papiers from '$lib/kit/Papiers.svelte'
+  import Guides from '$lib/kit/Guides.svelte'
 
-  let { lectureSeule = false, ondeconnecte } = $props()
+  let { lectureSeule = false, ondeconnecte, cible = [] } = $props()
   let d = $state(null)
   let ouvert = $state(null)
   let message = $state('')
   let attente = $state('')
-  let texte = $state(null)
 
   const refus = (e) => { if (e.statut === 401) ondeconnecte?.(); else message = e.message }
   async function lire() { try { d = await api.get('/api/livres') } catch (e) { refus(e) } }
@@ -22,12 +26,14 @@
     try { await api.post(chemin); message = dit; await lire() } catch (e) { refus(e) }
     attente = ''
   }
-  async function voir(nom) {
-    if (texte?.nom === nom) { texte = null; return }
-    try { texte = await api.get('/api/textes/' + encodeURIComponent(nom)) } catch (e) { refus(e) }
+  // Adresse « #/kit/02 » ou « #/kit/01/10-electricite.md » : le livre (et le texte) s'ouvrent tout seuls
+  function suivreCible() {
+    if (!d || !cible.length) return
+    const livre = d.livres.find((l) => l.numero === cible[0])
+    if (livre) ouvert = livre.fichier
+    if (cible[0] === '04') document.getElementById('guides')?.scrollIntoView()
   }
-  const guidesDe = (l) => l.numero.startsWith('04')
-  onMount(lire)
+  onMount(async () => { await lire(); suivreCible() })
 </script>
 
 <header class="mb-5">
@@ -54,7 +60,7 @@
     {#each d.livres as l (l.fichier)}
       <li class="rounded-2xl border bg-card">
         <button type="button" class="flex w-full items-center gap-4 p-4 text-left" aria-expanded={ouvert === l.fichier}
-                onclick={() => { ouvert = ouvert === l.fichier ? null : l.fichier; texte = null }}>
+                onclick={() => (ouvert = ouvert === l.fichier ? null : l.fichier)}>
           <span class="tranche w-16 flex-none" aria-hidden="true">{l.numero}</span>
           <span class="min-w-0 flex-1">
             <span class="flex items-center gap-2 text-lg font-semibold leading-tight">{l.titre}
@@ -72,17 +78,7 @@
             </p>
 
             {#if l.numero === '00' || l.numero === '01'}
-              <ul class="mt-3 divide-y">
-                {#each d.textes.filter((x) => x.livre === l.numero) as x}
-                  <li class="py-2">
-                    <button type="button" class="flex min-h-11 w-full items-center justify-between gap-3 text-left" aria-expanded={texte?.nom === x.nom} onclick={() => voir(x.nom)}>
-                      <span class="font-medium">{x.titre}</span>
-                      <span class="flex-none text-muted-foreground">{x.a_completer ? `${x.a_completer} à compléter` : `${x.mots} mots`}</span>
-                    </button>
-                    {#if texte?.nom === x.nom}<pre class="mt-2 max-h-96 overflow-auto rounded-lg bg-secondary p-3 text-[0.82rem] whitespace-pre-wrap">{texte.contenu}</pre>{/if}
-                  </li>
-                {/each}
-              </ul>
+              <Textes livre={l.numero} textes={d.textes} {lectureSeule} onchange={lire} onerreur={refus} ouvrir={cible[0] === l.numero ? cible[1] : null} />
 
             {:else if l.numero === '02'}
               <p class="mt-3 text-muted-foreground">Les contacts viennent de carnet (groupe Urgence), reçus le {quand(d.recus_le)}. Ils se modifient dans carnet.</p>
@@ -94,21 +90,10 @@
                   </li>
                 {:else}<li class="py-2 text-muted-foreground">Aucun contact reçu.</li>{/each}
               </ul>
-              {#each d.numeros as cat}
-                <h3 class="etiquette mt-4">{cat.nom}</h3>
-                <ul class="mt-1 divide-y">
-                  {#each cat.numeros as n}
-                    <li class="flex flex-wrap items-baseline justify-between gap-x-4 py-2">
-                      <span class="font-medium">{n.nom}</span>
-                      <span>{n.numero}{#if n.a_verifier}&nbsp;<span class="text-muted-foreground">· à vérifier</span>{/if}</span>
-                    </li>
-                  {/each}
-                </ul>
-              {/each}
+              <Numeros numeros={d.numeros} {lectureSeule} onchange={lire} onerreur={refus} />
 
             {:else if l.numero === '05'}
-              <p class="mt-3 text-muted-foreground">Dans l'ordre du livre. Les papiers ne s'affichent pas et ne se téléchargent pas ici : seul le livre chiffré sort.</p>
-              <ol class="mt-2 list-decimal space-y-1 pl-5" aria-label="Papiers">{#each d.papiers as p}<li>{p.nom} <span class="text-muted-foreground">· {poids(p.poids)}</span></li>{/each}</ol>
+              <Papiers papiers={d.papiers} retires={d.retires} {lectureSeule} onchange={lire} onerreur={refus} />
 
             {:else if l.papier}
               <p class="mt-3 text-muted-foreground">À imprimer et à ranger avec la liseuse. Le mot de passe des papiers n'y figure pas : il est sur la fiche manuscrite, rangée à part.</p>
@@ -119,17 +104,9 @@
     {/each}
   </ul>
 
-  <section class="mt-5 rounded-2xl border bg-card p-5" aria-label="Guides officiels">
+  <section id="guides" class="mt-5 rounded-2xl border bg-card p-5" aria-label="Guides officiels">
     <h2 class="flex items-baseline gap-3"><span class="tranche text-3xl" aria-hidden="true">04</span><span class="text-lg font-semibold">Guides officiels</span></h2>
     <p class="mt-1 text-sm text-muted-foreground">Copiés sans modification. Un guide ne part dans le kit que s'il a son fichier, son éditeur et son adresse officielle.</p>
-    <ul class="mt-2 divide-y text-sm">
-      {#each d.guides as g}
-        <li class="py-2">
-          <span class="font-medium">{g.titre}</span>
-          <span class="block text-muted-foreground">{g.editeur || 'éditeur manquant'}{g.date ? ` · ${g.date}` : ''}</span>
-          {#if g.manques.length}<span class="mt-0.5 flex items-center gap-1.5 font-medium"><TriangleAlert class="size-4" aria-hidden="true" />Il manque : {g.manques.join(', ')}</span>{/if}
-        </li>
-      {:else}<li class="py-2 text-muted-foreground">Aucun guide déclaré.</li>{/each}
-    </ul>
+    <Guides guides={d.guides} {lectureSeule} onchange={lire} onerreur={refus} />
   </section>
 {/if}

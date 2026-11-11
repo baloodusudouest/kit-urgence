@@ -18,7 +18,7 @@ from pathlib import Path
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 
-from . import __version__, config, etat, generate, journal, status, sync
+from . import __version__, config, ecrits, etat, generate, journal, status, sync
 from .auth import DUREE, Sessions
 from .garde import LectureSeule, exiger_ecriture, lecture_seule
 
@@ -67,6 +67,11 @@ async def garde(request: Request, appel):
     if chemin.startswith("/api/"):
         reponse.headers["Cache-Control"] = "no-store"
     return reponse
+
+
+@app.exception_handler(ecrits.Refus)
+async def _refus(_: Request, exc: ecrits.Refus):
+    return JSONResponse({"detail": str(exc)}, status_code=exc.code)
 
 
 @app.exception_handler(LectureSeule)
@@ -257,13 +262,19 @@ def api_etat():
 def api_livres():
     cfg = config.load()
     return {"livres": etat.livres(cfg), "textes": etat.textes(), "guides": etat.guides(),
-            "papiers": etat.liste_papiers(), "numeros": etat.numeros(), **etat.liste_contacts(cfg)}
+            "papiers": etat.liste_papiers(), "retires": ecrits.papiers_retires(), "numeros": etat.numeros(),
+            **etat.liste_contacts(cfg)}
 
 
 @app.get("/api/textes/{nom}")
 def api_texte(nom: str):
     chemin = _texte(nom)
-    return {"nom": chemin.name, "contenu": chemin.read_text(encoding="utf-8")}
+    return {"nom": chemin.name, "contenu": chemin.read_text(encoding="utf-8"), "versions": ecrits.versions(chemin)}
+
+
+@app.get("/api/textes/{nom}/versions/{ident}")
+def api_version(nom: str, ident: str):
+    return {"nom": nom, "id": ident, "contenu": ecrits.lire_version(_texte(nom), ident)}
 
 
 def _texte(nom: str) -> Path:
@@ -365,6 +376,158 @@ def api_disparitions(corps: dict = Body(...)):
     journal.noter(f"{len(acceptes)} livre(s) retiré(s) du kit après confirmation")
     _generer(config.load(), forcer=False)
     return etat.tuiles(config.load())
+
+
+# ================================================================ écritures dans les sources (2.1.0)
+# Chaque route : lecture seule refusée d'abord, puis le verrou (pas d'écriture pendant une fabrication),
+# puis l'écriture (qui refuse une seconde fois), puis le journal — sans nom de papier ni de contact.
+
+def _ecrire(quoi: str, faire, *args):
+    exiger_ecriture("dans les sources du kit")
+    with _TRAVAIL:
+        resultat = faire(*args)
+    journal.noter(quoi)
+    return resultat
+
+
+async def _corps_brut(request: Request, maxi: int) -> bytes:
+    """Le fichier déposé arrive tel quel dans le corps de la requête ; on s'arrête dès qu'il dépasse."""
+    annonce = request.headers.get("content-length", "")
+    if annonce.isdigit() and int(annonce) > maxi:
+        raise ecrits.Refus("Fichier trop lourd.", 413)
+    morceaux, total = [], 0
+    async for morceau in request.stream():
+        total += len(morceau)
+        if total > maxi:
+            raise ecrits.Refus("Fichier trop lourd.", 413)
+        morceaux.append(morceau)
+    return b"".join(morceaux)
+
+
+def _apres() -> dict:
+    return api_livres()
+
+
+@app.put("/api/textes/{nom}")
+def api_enregistrer_texte(nom: str, corps: dict = Body(...)):
+    _ecrire("Un texte modifié", ecrits.enregistrer_texte, nom, corps.get("contenu"))
+    return api_texte(nom)
+
+
+@app.post("/api/textes")
+def api_creer_texte(corps: dict = Body(...)):
+    nom = _ecrire("Un texte créé", ecrits.creer_texte, corps.get("titre"), corps.get("numero"))
+    return {"nom": nom, **_apres()}
+
+
+@app.post("/api/textes/{nom}/revenir")
+def api_revenir(nom: str, corps: dict = Body(...)):
+    _ecrire("Un texte remis à une ancienne version", ecrits.revenir_texte, nom, str(corps.get("version", "")))
+    return api_texte(nom)
+
+
+@app.delete("/api/textes/{nom}")
+def api_supprimer_texte(nom: str):
+    _ecrire("Un texte supprimé (gardé dans les versions)", ecrits.supprimer_texte, nom)
+    return _apres()
+
+
+@app.post("/api/numeros/{cat}")
+def api_ajouter_numero(cat: int, corps: dict = Body(...)):
+    _ecrire("Un numéro public ajouté", ecrits.enregistrer_numero, cat, None, corps)
+    return _apres()
+
+
+@app.put("/api/numeros/{cat}/{indice}")
+def api_numero(cat: int, indice: int, corps: dict = Body(...)):
+    _ecrire("Un numéro public modifié", ecrits.enregistrer_numero, cat, indice, corps)
+    return _apres()
+
+
+@app.post("/api/numeros/{cat}/{indice}/verifie")
+def api_numero_verifie(cat: int, indice: int):
+    _ecrire("Un numéro public marqué vérifié", ecrits.numero_verifie, cat, indice)
+    return _apres()
+
+
+@app.delete("/api/numeros/{cat}/{indice}")
+def api_supprimer_numero(cat: int, indice: int):
+    _ecrire("Un numéro public supprimé", ecrits.supprimer_numero, cat, indice)
+    return _apres()
+
+
+@app.put("/api/guides/fichier")
+async def api_deposer_guide(request: Request, nom: str, titre: str = "", editeur: str = "", url: str = "",
+                            date: str = "", langue: str = ""):
+    exiger_ecriture("dans les sources du kit")
+    contenu = await _corps_brut(request, ecrits.MAX_GUIDE)
+    fiche = {"titre": titre, "editeur": editeur, "url": url, "date": date, "langue": langue}
+    _ecrire("Un guide déposé", ecrits.deposer_guide, nom, contenu, fiche)
+    return _apres()
+
+
+@app.put("/api/guides/{indice}/fichier")
+async def api_joindre_guide(indice: int, request: Request, nom: str = ""):
+    exiger_ecriture("dans les sources du kit")
+    contenu = await _corps_brut(request, ecrits.MAX_GUIDE)
+    _ecrire("Le fichier d'un guide déposé", ecrits.joindre_guide, indice, nom, contenu)
+    return _apres()
+
+
+@app.put("/api/guides/{indice}")
+def api_guide(indice: int, corps: dict = Body(...)):
+    _ecrire("La fiche d'un guide modifiée", ecrits.enregistrer_guide, indice, corps)
+    return _apres()
+
+
+@app.delete("/api/guides/{indice}")
+def api_retirer_guide(indice: int):
+    _ecrire("Un guide retiré (fichier mis de côté)", ecrits.retirer_guide, indice)
+    return _apres()
+
+
+@app.put("/api/papiers")
+async def api_deposer_papier(request: Request, nom: str):
+    exiger_ecriture("dans les sources du kit")
+    contenu = await _corps_brut(request, ecrits.MAX_PAPIER)
+    _ecrire("Un papier déposé", ecrits.deposer_papier, nom, contenu)
+    return _apres()
+
+
+@app.post("/api/papiers/ordre")
+def api_ordre(corps: dict = Body(...)):
+    _ecrire("L'ordre des papiers changé", ecrits.ordonner_papiers, [str(n) for n in corps.get("noms") or []])
+    return _apres()
+
+
+@app.post("/api/papiers/renommer")
+def api_renommer(corps: dict = Body(...)):
+    _ecrire("Un papier renommé", ecrits.renommer_papier, str(corps.get("nom", "")), str(corps.get("nouveau", "")))
+    return _apres()
+
+
+@app.post("/api/papiers/retirer")
+def api_retirer(corps: dict = Body(...)):
+    _ecrire("Un papier retiré du livre (mis de côté)", ecrits.retirer_papier, str(corps.get("nom", "")))
+    return _apres()
+
+
+@app.post("/api/papiers/remettre")
+def api_remettre(corps: dict = Body(...)):
+    _ecrire("Un papier remis dans le livre", ecrits.remettre_papier, str(corps.get("id", "")))
+    return _apres()
+
+
+@app.post("/api/papiers/effacer")
+def api_effacer(corps: dict = Body(...)):
+    _ecrire("Un papier mis de côté effacé définitivement", ecrits.effacer_papier, str(corps.get("id", "")))
+    return _apres()
+
+
+@app.put("/api/reglages")
+def api_enregistrer_reglages(corps: dict = Body(...)):
+    _ecrire("Réglages modifiés", ecrits.enregistrer_reglages, corps)
+    return api_reglages()
 
 
 # ================================================================ interface

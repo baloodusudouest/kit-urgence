@@ -164,20 +164,22 @@
       {:else if choisie === 'completer'}
         <h2 class="text-lg font-semibold">Passages « À COMPLÉTER »</h2>
         <ul class="mt-2 space-y-1 text-sm">
-          {#each t.lignes as l}<li>{l.ou === 'texte' ? `Texte « ${l.titre} »` : `Numéro « ${l.nom} » (${l.titre})`}{l.nombre > 1 ? ` — ${l.nombre} passages` : ''}</li>{/each}
+          {#each t.lignes as l}
+            <li><a class="underline" href={l.ou === 'texte' ? `#/kit/${l.nom.startsWith('00') ? '00' : '01'}/${encodeURIComponent(l.nom)}` : '#/kit/02'}>
+              {l.ou === 'texte' ? `Texte « ${l.titre} »` : `Numéro « ${l.nom} » (${l.titre})`}</a>{l.nombre > 1 ? ` — ${l.nombre} passages` : ''}</li>
+          {/each}
         </ul>
-        <p class="mt-3 text-sm"><a class="underline" href="#/kit">Ouvrir le kit</a></p>
 
       {:else if choisie === 'verifier'}
         <h2 class="text-lg font-semibold">Numéros jamais vérifiés</h2>
         <p class="mt-1 text-sm text-muted-foreground">À contrôler sur une facture ou le site officiel.</p>
         <ul class="mt-2 space-y-1 text-sm">{#each t.lignes as l}<li><strong class="font-medium">{l.nom}</strong> : {l.numero}</li>{/each}</ul>
-        <p class="mt-3 text-sm"><a class="underline" href="#/kit">Ouvrir le kit</a></p>
+        <p class="mt-3 text-sm"><a class="underline" href="#/kit/02">Les corriger ou les marquer vérifiés</a></p>
 
       {:else if choisie === 'guides'}
         <h2 class="text-lg font-semibold">Guides qui ne partent pas dans le kit</h2>
         <ul class="mt-2 space-y-1 text-sm">{#each t.lignes as g}<li><strong class="font-medium">{g.titre}</strong> — il manque : {g.manques.join(', ')}</li>{/each}</ul>
-        <p class="mt-3 text-sm"><a class="underline" href="#/kit">Ouvrir le kit</a></p>
+        <p class="mt-3 text-sm"><a class="underline" href="#/kit/04">Déposer les fichiers ou compléter les fiches</a></p>
 
       {:else}
         <h2 class="text-lg font-semibold">{DEFS.find((x) => x.cle === choisie).nom}</h2>

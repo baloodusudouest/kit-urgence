@@ -51,6 +51,7 @@ def page(request, navigateur, adresse):
     ctx = navigateur.new_context(viewport={"width": 390, "height": 844} if mobile else {"width": 1280, "height": 860},
                                  is_mobile=mobile, has_touch=mobile)
     pg = ctx.new_page()
+    pg.set_default_timeout(10000)
     pg.mobile = mobile
     erreurs = []
     pg.on("pageerror", lambda e: erreurs.append(str(e)))
@@ -129,9 +130,101 @@ def test_les_contacts_se_lisent_et_les_textes_s_ouvrent(page):
     contacts = page.get_by_role("list", name="Contacts").inner_text()
     assert "Camille Voisin" in contacts and "06 00 00 00 02" in contacts
     page.get_by_role("button", name=re.compile("^Procédures")).click()
-    page.locator("li li button").first.click()                       # le premier texte du livre
-    page.locator("pre").wait_for()
-    assert len(page.locator("pre").inner_text()) > 100
+    page.get_by_role("list", name="Textes").get_by_role("button").first.click()
+    page.locator("textarea").wait_for()
+    assert len(page.locator("textarea").input_value()) > 100
+
+
+
+
+# ---------------------------------------------------------------- 2.1.0 : écrire depuis l'écran
+# Ces tests changent le jeu : ils viennent après ceux qui le lisent, et chacun défait ce qu'il a fait
+# ou travaille sur un objet qu'il crée.
+
+def ouvrir_livre(page, nom):
+    aller(page, "Kit")
+    page.locator("li > button", has_text=re.compile(nom)).first.click()
+
+
+def test_ecrire_un_texte_et_revenir_a_l_ancien(page):
+    ouvrir_livre(page, "Procédures")
+    page.get_by_role("list", name="Textes").get_by_role("button", name=re.compile("^Eau")).click()
+    zone = page.locator("textarea")
+    zone.wait_for()
+    avant = zone.input_value()
+    enregistrer = page.get_by_role("button", name="Enregistrer")
+    assert enregistrer.is_disabled()                                # rien n'a changé : rien à enregistrer
+    marque = "Ligne ajoutée pendant l'essai " + ("iPhone" if page.mobile else "PC")
+    zone.fill(avant + "\n" + marque + "\n")
+    enregistrer.click()
+    page.get_by_role("status").filter(has_text="Enregistré").wait_for()
+    versions = page.get_by_role("list", name="Versions")
+    versions.get_by_role("button", name="Revenir à cette version").first.click()
+    page.get_by_role("status").filter(has_text="Ancienne version remise").wait_for()
+    assert marque not in zone.input_value()
+
+
+def test_deposer_ranger_retirer_remettre_un_papier(page, tmp_path):
+    ouvrir_livre(page, "Papiers")
+    nom = "permis-iphone.png" if page.mobile else "permis-pc.png"
+    from tests.conftest import PNG
+    fichier = tmp_path / nom
+    fichier.write_bytes(PNG)
+    page.get_by_label(re.compile("Déposer des papiers")).set_input_files(str(fichier))
+    page.locator("#message-papiers", has_text="déposé").wait_for()
+    liste = page.get_by_role("list", name="Papiers", exact=True)
+    assert nom.split(".")[0] in liste.inner_text()
+    assert page.locator("main img").count() == 0                    # toujours aucun aperçu
+    depose = liste.locator("li", has_text=nom.split(".")[0])
+    depose.get_by_role("button", name=re.compile("^Monter")).click()
+    page.locator("#message-papiers", has_text="Ordre changé").wait_for()
+    depose = liste.locator("li", has_text=nom.split(".")[0])
+    depose.get_by_role("button", name="Retirer").click()
+    page.locator("#message-papiers", has_text="mis de côté").wait_for()
+    cote = page.get_by_role("list", name="Papiers mis de côté")
+    ligne = cote.locator("li", has_text=nom.split(".")[0])
+    ligne.get_by_role("button", name=re.compile("Effacer définitivement")).click()
+    assert ligne.get_by_text("Effacer pour de bon ?").count() == 1   # jamais en un seul geste
+    ligne.get_by_role("button", name="Oui, effacer").click()
+    page.locator("#message-papiers", has_text="effacé").wait_for()
+    assert nom.split(".")[0] not in page.locator("main").inner_text()
+
+
+def test_corriger_un_numero(page):
+    ouvrir_livre(page, "Contacts")
+    mairie = page.get_by_role("list", name="Commune et santé").locator("> li", has_text="Mairie")
+    mairie.get_by_role("button", name="Modifier").click()
+    numero = "05 55 00 00 4" + ("2" if page.mobile else "1")
+    mairie.get_by_label("Numéro").fill(numero)
+    mairie.get_by_role("button", name="Enregistrer").click()
+    page.get_by_role("status").filter(has_text="Numéro enregistré").wait_for()
+    assert numero in page.get_by_role("list", name="Commune et santé").locator("> li", has_text="Mairie").inner_text()
+
+
+def test_un_guide_sans_adresse_officielle_n_entre_pas(page):
+    aller(page, "Kit")
+    page.get_by_role("button", name="Ajouter un guide").click()
+    enregistrer = page.locator("#guides form").get_by_role("button", name="Enregistrer")
+    assert enregistrer.is_disabled()                                # pas de fichier : pas de bouton
+    assert page.locator("#guides form input[required]").count() >= 4   # titre, éditeur, adresse, fichier
+
+
+def test_un_lien_de_a_traiter_ouvre_le_bon_texte(page):
+    tuile(page, "À compléter").click()
+    page.get_by_role("region", name="À compléter").get_by_role("link").first.click()
+    page.locator("textarea").wait_for()
+    assert "À COMPLÉTER" in page.locator("textarea").input_value()
+
+
+def test_reglages_refuse_un_dossier_dangereux(page):
+    aller(page, "Réglages")
+    dossier = page.get_by_label(re.compile("Dossier des livres"))
+    bon = dossier.input_value()
+    dossier.fill("/mnt")
+    page.get_by_role("button", name="Enregistrer").click()
+    page.locator("#message", has_text="au moins deux niveaux").wait_for()
+    page.reload()
+    assert page.get_by_label(re.compile("Dossier des livres")).input_value() == bon
 
 
 def test_verifier_puis_livrer_depuis_connexion(page):

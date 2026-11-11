@@ -23,11 +23,16 @@
   let connecte = $state(null) // null : on ne sait pas encore
   let session = $state({ version: '', lecture_seule: false })
   let page = $state(lirePage())
+  let cible = $state(lireCible())   // ce qui suit la page dans l'adresse : « #/kit/02 » ouvre le livre 02
   let attente = $state(0) // nombre de choses à traiter, montré sur l'onglet
 
   function lirePage() {
     const p = location.hash.replace('#/', '').split('/')[0]
     return onglets.some((o) => o.page === p) ? p : 'a-traiter'
+  }
+
+  function lireCible() {
+    return location.hash.replace('#/', '').split('/').slice(1).map(decodeURIComponent)
   }
 
   async function verifier() {
@@ -49,7 +54,7 @@
   onMount(verifier)
 </script>
 
-<svelte:window onhashchange={() => (page = lirePage())} />
+<svelte:window onhashchange={() => { page = lirePage(); cible = lireCible() }} />
 
 {#if connecte === false}
   <Connexion onconnecte={verifier} />
@@ -89,10 +94,10 @@
           Mode lecture seule : le kit fabrique ses livres mais n'écrit ni sur la liseuse ni dans ses sources.
         </p>
       {/if}
-      {#key page}
+      {#key page + '/' + cible.join('/')}
         <div in:fly={{ y: 6, duration: 180 }}>
           {#if page === 'kit'}
-            <Kit lectureSeule={session.lecture_seule} ondeconnecte={sortir} />
+            <Kit lectureSeule={session.lecture_seule} ondeconnecte={sortir} {cible} />
           {:else if page === 'connexion'}
             <Services lectureSeule={session.lecture_seule} ondeconnecte={sortir} />
           {:else if page === 'reglages'}

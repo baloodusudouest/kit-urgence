@@ -8,7 +8,20 @@
   let { deconnecter, ondeconnecte } = $props()
   let d = $state(null)
   let message = $state('')
-  async function lire() { try { d = await api.get('/api/reglages') } catch (e) { if (e.statut === 401) ondeconnecte?.(); else message = e.message } }
+  let f = $state(null)          // formulaire : copie des réglages, envoyée d'un bloc
+  let attente = $state(false)
+  function recevoir(r) {
+    d = r
+    f = { titre_foyer: r.titre_foyer, scrutation_secondes: r.scrutation_secondes, liseuse: { ...r.liseuse } }
+  }
+  async function lire() { try { recevoir(await api.get('/api/reglages')) } catch (e) { if (e.statut === 401) ondeconnecte?.(); else message = e.message } }
+  async function enregistrer(e) {
+    e.preventDefault(); attente = true; message = ''
+    try { recevoir(await api.put('/api/reglages', f)); message = 'Réglages enregistrés. L\'ancien fichier est gardé dans les versions.' }
+    catch (err) { if (err.statut === 401) ondeconnecte?.(); else message = err.message }
+    attente = false
+  }
+  const champ = 'h-10 rounded-lg border border-input bg-background px-3 outline-none focus:border-ring'
   onMount(lire)
 </script>
 
@@ -22,14 +35,23 @@
 {:else}
   <section class="rounded-2xl border bg-card p-5" aria-label="Réglages du kit">
     <h2 class="text-lg font-semibold">Le kit</h2>
-    <dl class="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-      <dt class="text-muted-foreground">Nom du foyer</dt><dd>{d.titre_foyer}</dd>
-      <dt class="text-muted-foreground">Liseuse</dt><dd>{d.liseuse.host ? `${d.liseuse.host}:${d.liseuse.port}` : 'adresse non réglée'}</dd>
-      <dt class="text-muted-foreground">Dossier sur la liseuse</dt><dd>{d.liseuse.dossier}</dd>
-      <dt class="text-muted-foreground">Recherche de la liseuse</dt><dd>toutes les {d.scrutation_secondes} secondes</dd>
-      <dt class="text-muted-foreground">Mot de passe des papiers</dt><dd>{d.mot_de_passe_papiers ? 'réglé dans la stack' : 'absent de la stack : le livre des papiers n\'est pas fabriqué'}</dd>
-    </dl>
-    <p class="mt-3 text-sm text-muted-foreground">Le mot de passe des papiers ne s'affiche pas et ne se change pas ici : il vit dans la stack, et sur la fiche manuscrite rangée à part.</p>
+    <form class="mt-3 grid gap-3 text-sm md:grid-cols-2" onsubmit={enregistrer}>
+      <label class="flex flex-col gap-1 md:col-span-2">Nom du foyer (sur la page de garde de chaque livre)
+        <input bind:value={f.titre_foyer} required maxlength="80" disabled={d.lecture_seule} class={champ} /></label>
+      <label class="flex flex-col gap-1">Adresse de la liseuse (IP fixe)
+        <input bind:value={f.liseuse.host} maxlength="100" placeholder="192.168.1.50" disabled={d.lecture_seule} class={champ} /></label>
+      <label class="flex flex-col gap-1">Port du serveur SSH de KOReader
+        <input type="number" min="1" max="65535" bind:value={f.liseuse.port} required disabled={d.lecture_seule} class={champ} /></label>
+      <label class="flex flex-col gap-1 md:col-span-2">Dossier des livres sur la liseuse
+        <input bind:value={f.liseuse.dossier} required maxlength="200" disabled={d.lecture_seule} class={champ} />
+        <span class="text-muted-foreground">La livraison y efface les livres qui ne sont plus dans le kit : un dossier réservé au kit.</span></label>
+      <label class="flex flex-col gap-1">Recherche de la liseuse, toutes les (secondes)
+        <input type="number" min="15" max="3600" bind:value={f.scrutation_secondes} required disabled={d.lecture_seule} class={champ} /></label>
+      <div class="flex items-end"><Button type="submit" disabled={attente || d.lecture_seule}>Enregistrer</Button></div>
+    </form>
+    {#if message}<p class="mt-2 text-sm" role="status" id="message">{message}</p>{/if}
+    <p class="mt-4 text-sm">Mot de passe des papiers : {d.mot_de_passe_papiers ? 'réglé dans la stack' : 'absent de la stack — le livre des papiers n\'est pas fabriqué'}.</p>
+    <p class="mt-1 text-sm text-muted-foreground">Le mot de passe des papiers ne s'affiche pas et ne se change pas ici : il vit dans la stack, et sur la fiche manuscrite rangée à part.</p>
   </section>
 
   <section class="mt-4 rounded-2xl border bg-card p-5" aria-label="Écriture">

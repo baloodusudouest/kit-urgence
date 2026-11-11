@@ -1,5 +1,30 @@
 # Changelog — kit-urgence
 
+## 2.1.0 — 2026-11-11
+Seconde image de la 2.0 : **l'écran écrit dans les sources du kit**. À déployer après avoir vu la 2.0.0 marcher.
+Aucune variable nouvelle.
+
+- **Textes** (Lisez-moi et procédures) : éditeur dans l'écran. Enregistrer garde l'ancienne version (les dix
+  dernières, dans `versions/` du dossier du kit) ; « Voir » et « Revenir à cette version ». Créer un texte
+  (titre et place dans le livre), le supprimer (il reste dans les versions). Le Lisez-moi ne se supprime pas.
+- **Numéros publics** : corriger, ajouter, supprimer ; « Vérifié aujourd'hui » date la vérification et retire
+  la mention « à vérifier » du livre. Un numéro qui change redevient à vérifier.
+- **Papiers** : dépôt (PDF, JPG, PNG, 50 Mo au plus, contenu contrôlé), rangés à la fin du livre ; monter,
+  descendre, renommer. **Retirer met de côté** (dossier `retires/`, hors de ce que le générateur parcourt) :
+  « Remettre » ou « Effacer définitivement », en deux gestes. Jamais d'aperçu ni de téléchargement.
+- **Guides** : un guide n'entre qu'avec titre, éditeur et adresse officielle ; dépôt du fichier d'un guide déjà
+  déclaré ; fiche modifiable ; retrait (fichier mis de côté, et le livre ne quitte la liseuse qu'après un oui).
+- **Réglages** : nom du foyer, adresse, port et dossier de la liseuse, intervalle de recherche. Le dossier de la
+  liseuse doit être un chemin complet d'au moins deux niveaux (la livraison y efface des fichiers).
+- **Enregistrer ne fabrique rien** : le kit passe « à refabriquer » ; la fabrication se fait au bouton, ou quand
+  la liseuse se présente.
+- Les liens de « À traiter » ouvrent le bon livre et le bon texte.
+- Garde-fous : on n'écrase jamais un fichier déposé ; un nom donné par l'écran ne sert jamais de chemin ;
+  la lecture seule refuse chaque écriture deux fois ; le journal ne contient aucun nom de papier.
+- Les fichiers de réglages réécrits par l'écran perdent leurs commentaires ; l'original est gardé dans `versions/`.
+- Non fait : renommer un texte, aperçu du texte mis en page.
+- Tests : 39 pour le générateur et l'API, 25 d'écran, lancés dans l'image.
+
 ## 2.0.0 — 2026-11-11
 Première des deux images de la 2.0 : **l'interface en lecture, la sécurité, les contrôles**. Rien n'écrit
 encore dans les sources du kit (ce sera la 2.1.0). Dossier : `docs/dossier.md` ; avis du conseil : `docs/2.0-conseil.md`.

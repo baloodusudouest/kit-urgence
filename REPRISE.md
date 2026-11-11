@@ -6,8 +6,9 @@ Format commun des applis : dépôt `socle`, `docs/format.md`.
 ## Où on en est
 
 - **2.0.0** (11/11/2026) : interface en lecture, sécurité, contrôles. Publiée, **pas encore vue sur le NAS**.
-- **2.1.0** : les écritures (éditeur des procédures avec versions, numéros publics, dépôt des guides et des
-  papiers avec mise de côté, réglages). À faire.
+- **2.1.0** (11/11/2026) : les écritures (`app/ecrits.py`). Publiée, **pas encore vue sur le NAS**.
+  À déployer après la 2.0.0, une fois celle-ci vue en vrai (Home Assistant, carnet, une livraison).
+- Idées gardées pour plus tard : dates d'expiration des papiers, batterie de la liseuse, renommer un texte.
 
 ## Ce qu'il ne faut pas casser
 
@@ -18,7 +19,9 @@ Format commun des applis : dépôt `socle`, `docs/format.md`.
 4. **Le kit ne retire jamais seul un livre** : `disparitions` dans l'état, oui donné par `/api/disparitions`.
 5. **Aucun nom de papier** hors de l'écran : ni dans `/status`, ni dans le journal, ni dans les avertissements.
 6. **Lecture seule refusée deux fois** : à l'adresse, et dans `sync.livrer` (`garde.exiger_ecriture`).
-7. **Rien de personnel dans le dépôt** (il est public) : exemples inventés, valeurs dans Portainer.
+7. **Les écritures** (`ecrits.py`) : jamais d'écrasement, ancien gardé dans `/data/versions/`, retiré mis de côté
+   dans `/data/retires/`, un nom venu de l'écran n'est jamais un chemin.
+8. **Rien de personnel dans le dépôt** (il est public) : exemples inventés, valeurs dans Portainer.
 
 ## Pièges rencontrés
 
