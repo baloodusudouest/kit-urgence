@@ -30,6 +30,9 @@ Format commun des applis : dépôt `socle`, `docs/format.md`.
   d'autre (les versions et les papiers mis de côté iront ailleurs sous `/data`).
 - `papiers.sources` parcourt les sous-dossiers : un papier mis de côté dans `papiers/` repartirait dans le livre.
 - Un mot de passe passé à qpdf ne doit jamais pouvoir commencer par un tiret (bogue corrigé en 2.0.0).
+- **qpdf 12 refuse l'appel de chiffrement du kit** (`papiers.construire`, écrit pour qpdf 11 de Debian bookworm) :
+  le livre des papiers ne sort plus. Les tests tournent donc **dans l'image**. Ne pas changer d'image de base
+  sans réécrire cet appel et voir les tests verts.
 - La liseuse est servie toute seule dès qu'elle apparaît : enregistrer une source, c'est publier.
 - `pages/Connexion.svelte` est la page du mot de passe ; l'écran des services est `pages/Services.svelte`.
 
@@ -45,6 +48,6 @@ python -m pytest -q tests/interface
 
 ## Déployer
 
-Pousser sur `main` : les tests tournent, puis l'image `ghcr.io/baloodusudouest/kit-urgence:<version>` est
+Pousser sur `main` : l'image est construite, tous les tests tournent dedans, puis l'image `ghcr.io/baloodusudouest/kit-urgence:<version>` est
 publiée (version lue dans `app/__init__.py`). Dans Portainer : changer `KIT_VERSION`, mettre à jour la stack.
 Pas de `latest`, pas de Watchtower.
