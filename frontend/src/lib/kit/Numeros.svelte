@@ -11,7 +11,7 @@
 
   async function essayer(faire, dit) {
     attente = true; message = ''
-    try { await faire(); message = dit; edition = null; onchange?.() } catch (e) { if (e.statut === 401) onerreur?.(e); else message = e.message }
+    try { await faire(); edition = null; await onchange?.(); message = dit } catch (e) { if (e.statut === 401) onerreur?.(e); else message = e.message }
     attente = false
   }
   const enregistrer = () => {

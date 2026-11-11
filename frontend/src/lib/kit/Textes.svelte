@@ -27,17 +27,17 @@
   }
   const enregistrer = () => essayer(async () => {
     t = await api.put('/api/textes/' + encodeURIComponent(t.nom), { contenu: brouillon })
-    brouillon = t.contenu; message = 'Enregistré. Le livre sera refait à la prochaine fabrication.'; onchange?.()
+    brouillon = t.contenu; await onchange?.(); message = 'Enregistré. Le livre sera refait à la prochaine fabrication.'
   })
   const voir = (id) => essayer(async () => {
     vue = vue?.id === id ? null : await api.get(`/api/textes/${encodeURIComponent(t.nom)}/versions/${id}`)
   })
   const revenir = (id) => essayer(async () => {
     t = await api.post(`/api/textes/${encodeURIComponent(t.nom)}/revenir`, { version: id })
-    brouillon = t.contenu; vue = null; message = 'Ancienne version remise. Celle que tu quittes reste dans la liste.'; onchange?.()
+    brouillon = t.contenu; vue = null; await onchange?.(); message = 'Ancienne version remise. Celle que tu quittes reste dans la liste.'
   })
   const supprimer = () => essayer(async () => {
-    await api.del('/api/textes/' + encodeURIComponent(t.nom)); t = null; message = 'Texte supprimé (gardé dans les versions du NAS).'; onchange?.()
+    await api.del('/api/textes/' + encodeURIComponent(t.nom)); t = null; await onchange?.(); message = 'Texte supprimé (gardé dans les versions du NAS).'
   })
   const creer = () => essayer(async () => {
     const r = await api.post('/api/textes', { titre: nouveau.titre, numero: Number(nouveau.numero) })

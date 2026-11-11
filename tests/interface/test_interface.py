@@ -173,7 +173,7 @@ def test_deposer_ranger_retirer_remettre_un_papier(page, tmp_path):
     page.locator("input[type=file][aria-label='Déposer des papiers']").set_input_files(str(fichier))
     page.locator("#message-papiers", has_text="déposé").wait_for()
     liste = page.get_by_role("list", name="Papiers", exact=True)
-    assert nom.split(".")[0] in liste.inner_text()
+    liste.locator("li", has_text=nom.split(".")[0]).wait_for()
     assert page.locator("main img").count() == 0                    # toujours aucun aperçu
     depose = liste.locator("li", has_text=nom.split(".")[0])
     depose.get_by_role("button", name=re.compile("^Monter")).click()
@@ -210,8 +210,10 @@ def test_glisser_deposer_un_papier(page):
     page.locator("#message-papiers", has_text="1 fichier(s) déposé(s)").wait_for()
     assert page.get_by_text("1 fichier(s) écarté(s)").count() == 1
     liste = page.get_by_role("list", name="Papiers", exact=True)
-    assert nom.split(".")[0] in liste.inner_text() and "note" not in liste.inner_text()
-    liste.locator("li", has_text=nom.split(".")[0]).get_by_role("button", name="Retirer").click()   # on range derrière soi
+    depose = liste.locator("li", has_text=nom.split(".")[0])
+    depose.wait_for()                                               # la liste se relit après le message
+    assert "note" not in liste.inner_text()
+    depose.get_by_role("button", name="Retirer").click()            # on range derrière soi
     page.locator("#message-papiers", has_text="mis de côté").wait_for()
 
 

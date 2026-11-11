@@ -15,7 +15,7 @@
 
   async function essayer(faire, dit) {
     attente = true; message = ''
-    try { await faire(); message = dit; onchange?.() } catch (e) { if (e.statut === 401) onerreur?.(e); else message = e.message }
+    try { await faire(); await onchange?.(); message = dit } catch (e) { if (e.statut === 401) onerreur?.(e); else message = e.message }
     attente = false
   }
   const fiche = () => ({ titre: edition.titre, editeur: edition.editeur, url: edition.url, date: edition.date, langue: edition.langue })

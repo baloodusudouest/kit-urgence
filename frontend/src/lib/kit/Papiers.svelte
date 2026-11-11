@@ -16,7 +16,7 @@
 
   async function essayer(faire, dit) {
     attente = true; message = ''
-    try { await faire(); message = dit; onchange?.() } catch (e) { if (e.statut === 401) onerreur?.(e); else { message = e.message; onchange?.() } }
+    try { await faire(); await onchange?.(); message = dit } catch (e) { if (e.statut === 401) onerreur?.(e); else { message = e.message; onchange?.() } }
     attente = false
   }
   const deposer = (fichiers) => essayer(async () => {
