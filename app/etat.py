@@ -137,7 +137,10 @@ def livres(cfg: Config) -> list[dict]:
     echecs = {e["livre"]: e["raison"] for e in (etat.get("controle") or {}).get("echecs", [])}
     disparitions = set(etat.get("disparitions") or [])
     sortie = []
-    for nom in sorted(set(etat.get("livres") or {}) | set(echecs) - {generate.NOM_PAPIER}):
+    # 2.1.3 : les livres de base sont toujours montrés, même pas encore fabriqués — c'est dans le livre
+    # des papiers que l'on dépose les papiers : il doit être là avant le premier dépôt.
+    de_base = {generate.NOM_00, generate.NOM_01, generate.NOM_02, generate.NOM_05}
+    for nom in sorted(de_base | set(etat.get("livres") or {}) | set(echecs) - {generate.NOM_PAPIER}):
         chemin = generate.SORTIE / nom
         numero, titre, quoi = TITRES.get(nom, (nom[:3].strip(" -"), nom.split(" - ", 1)[-1].rsplit(".", 1)[0],
                                                "Guide officiel, copié sans modification."))
@@ -147,6 +150,11 @@ def livres(cfg: Config) -> list[dict]:
             "fabrique_le": (registre.get(nom) or {}).get("date"),
             "echec": echecs.get(nom), "va_disparaitre": nom in disparitions,
             "chiffre": nom == generate.NOM_05,
+            # Pourquoi le livre des papiers n'existe pas encore, dit en clair
+            "attente": None if chemin.exists() or nom != generate.NOM_05 else (
+                "Aucun papier déposé : dépose-les ici, puis « Fabriquer »." if not papiers.sources(DATA / "papiers")
+                else "Le mot de passe des papiers est absent de la stack (KIT_PAPIERS_PASSWORD) : le livre ne peut pas être chiffré."
+                if not cfg.papiers_password else "Papiers déposés : clique « Fabriquer » pour créer le livre chiffré."),
         })
     papier = generate.SORTIE_PAPIER / generate.NOM_PAPIER
     sortie.append({

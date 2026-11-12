@@ -1,5 +1,8 @@
 # Changelog — kit-urgence
 
+## 2.1.3 — 2026-11-12
+- Corrigé : le livre des papiers (05) n'apparaissait dans l'écran Kit qu'une fois fabriqué — or c'est dans ce livre que l'on dépose les papiers. Les quatre livres de base sont maintenant toujours montrés ; celui des papiers dit ce qu'il attend (un dépôt, le mot de passe dans la stack, ou une fabrication).
+
 ## 2.1.2 — 2026-11-12
 - Icône de l'appli (onglet du navigateur, écran d'accueil de l'iPhone) : une trousse rouge brique.
 - L'image est de nouveau publiée par la même voie que les autres applis (le NAS refusait la précédente).

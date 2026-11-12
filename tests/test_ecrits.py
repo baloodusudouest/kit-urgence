@@ -260,3 +260,26 @@ def test_reglages(ecran, jeu):
         assert ecran.put("/api/reglages", json={**bon, **mauvais}).status_code == 422, mauvais
     assert ecran.get("/api/etat").json()["tuiles"]["modifie"]["nombre"] == 1    # le nom du foyer est sur chaque page de garde
     assert list((jeu / "data" / "versions" / "config" / "config.yaml").iterdir())
+
+
+def test_le_livre_des_papiers_est_la_avant_le_premier_depot(ecran, jeu, monkeypatch):
+    """2.1.3 : sans aucun papier, le livre 05 est quand même montré, pour pouvoir y déposer."""
+    ecran.post("/api/papiers/retirer", json={"nom": "01-carte.png"})
+    ecran.post("/api/generer")
+    ecran.post("/api/disparitions", json={"livres": [generate.NOM_05]})          # le livre n'existe plus du tout
+    d = ecran.get("/api/livres").json()
+    assert [l["numero"] for l in d["livres"]] == ["00", "01", "02", "05", "A4"]
+    cinq = next(l for l in d["livres"] if l["numero"] == "05")
+    assert not cinq["present"] and "Aucun papier déposé" in cinq["attente"]
+    import io
+    from PIL import Image
+    vrai_pdf = io.BytesIO()
+    Image.new("RGB", (200, 280), (240, 240, 240)).save(vrai_pdf, "PDF")       # un PDF que qpdf sait relire
+    d = ecran.put("/api/papiers", params={"nom": "passeport.pdf"}, content=vrai_pdf.getvalue()).json()
+    assert "Fabriquer" in next(l for l in d["livres"] if l["numero"] == "05")["attente"]
+    monkeypatch.setenv("PAPIERS_PASSWORD", "")
+    assert "mot de passe" in next(l for l in ecran.get("/api/livres").json()["livres"] if l["numero"] == "05")["attente"]
+    monkeypatch.setenv("PAPIERS_PASSWORD", "papiers-essai")
+    ecran.post("/api/generer")
+    cinq = next(l for l in ecran.get("/api/livres").json()["livres"] if l["numero"] == "05")
+    assert cinq["present"] and cinq["attente"] is None and cinq["chiffre"]

@@ -66,6 +66,7 @@
             <span class="flex items-center gap-2 text-lg font-semibold leading-tight">{l.titre}
               {#if l.chiffre}<Lock class="size-4 text-muted-foreground" aria-label="chiffré" />{/if}</span>
             <span class="block text-sm text-muted-foreground">{l.quoi}</span>
+            {#if !l.present && !l.papier}<span class="mt-1 block text-sm font-medium">{l.attente || 'Pas encore fabriqué'}</span>{/if}
             {#if l.echec}<span class="mt-1 flex items-center gap-1.5 text-sm font-medium"><TriangleAlert class="size-4" aria-hidden="true" />Dernière fabrication refusée : {l.echec}</span>{/if}
             {#if l.va_disparaitre}<span class="mt-1 flex items-center gap-1.5 text-sm font-medium"><TriangleAlert class="size-4" aria-hidden="true" />N'a plus de source : voir « À traiter »</span>{/if}
           </span>
@@ -73,7 +74,7 @@
         {#if ouvert === l.fichier}
           <div class="border-t px-4 py-4 text-sm">
             <p class="flex flex-wrap items-center justify-between gap-2 text-muted-foreground">
-              <span>{l.present ? `Fabriqué le ${quand(l.fabrique_le)} · ${poids(l.poids)}` : 'Pas encore fabriqué'}</span>
+              <span>{l.present ? `Fabriqué le ${quand(l.fabrique_le)} · ${poids(l.poids)}` : (l.attente || 'Pas encore fabriqué')}</span>
               {#if l.present}<a class="inline-flex h-9 items-center rounded-md border px-4 font-medium text-foreground hover:bg-accent" href={lienLivre(l.fichier)} download>Télécharger{l.chiffre ? ' (chiffré)' : ''}</a>{/if}
             </p>
 
