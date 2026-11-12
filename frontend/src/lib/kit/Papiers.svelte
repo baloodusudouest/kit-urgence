@@ -7,8 +7,9 @@
   import { poids, jour } from '$lib/format.js'
   import { Button } from '$lib/components/ui/button/index.js'
   import Depot from './Depot.svelte'
+  import Check from '@lucide/svelte/icons/check'
 
-  let { papiers, retires, lectureSeule = false, onchange, onerreur } = $props()
+  let { papiers, pieces = [], retires, lectureSeule = false, onchange, onerreur } = $props()
   let message = $state('')
   let attente = $state(false)
   let renomme = $state(null)    // { nom, nouveau }
@@ -22,6 +23,20 @@
   const deposer = (fichiers) => essayer(async () => {
     for (const f of fichiers) await api.deposer('/api/papiers', f)
   }, `${fichiers.length} fichier(s) déposé(s), rangé(s) à la fin du livre. Le livre sera refait à la prochaine fabrication.`)
+  // 2.2.0 : les papiers conseillés. Déposer depuis une ligne donne au fichier le nom de la ligne.
+  const ACCEPTES = ['.pdf', '.jpg', '.jpeg', '.png']
+  const groupes = $derived([...new Set(pieces.map((p) => p.groupe))])
+  const aFaire = $derived(pieces.filter((p) => !p.ecartee && !p.papiers.length).length)
+  const concernees = $derived(pieces.filter((p) => !p.ecartee).length)
+  function deposerPour(piece, entree) {
+    const f = [...entree.files].filter((x) => ACCEPTES.some((e) => x.name.toLowerCase().endsWith(e)))
+    entree.value = ''
+    if (!f.length) { message = 'Seuls PDF, JPG et PNG sont acceptés.'; return }
+    return essayer(async () => { for (const x of f) await api.deposer('/api/papiers', x, { piece: piece.cle }) },
+      `« ${piece.nom} » : ${f.length} fichier(s) déposé(s). Le livre sera refait à la prochaine fabrication.`)
+  }
+  const ecarter = (piece, oui) => essayer(() => api.post('/api/papiers/conseille', { cle: piece.cle, ecartee: oui }),
+    oui ? `« ${piece.nom} » ne te sera plus proposé.` : `« ${piece.nom} » est de nouveau proposé.`)
   const deplacer = (i, pas) => {
     const noms = papiers.map((p) => p.nom)
     ;[noms[i], noms[i + pas]] = [noms[i + pas], noms[i]]
@@ -34,6 +49,37 @@
   const effacer = (id) => essayer(async () => { await api.post('/api/papiers/effacer', { id }); aEffacer = null }, 'Papier effacé du dossier du kit.')
 </script>
 
+{#if pieces.length}
+  <h3 class="etiquette mt-4">Papiers à toujours avoir sur soi</h3>
+  <p class="mt-1 text-muted-foreground">Une copie de chacun, à déposer ici : {concernees - aFaire} sur {concernees} dans le livre. Une ligne se coche toute seule quand un papier déposé porte son nom. Rien n'est obligatoire : écarte ce qui ne te concerne pas.</p>
+  {#each groupes as g}
+    <h4 class="mt-3 text-sm font-medium text-muted-foreground">{g}</h4>
+    <ul class="divide-y" aria-label={'Papiers conseillés : ' + g}>
+      {#each pieces.filter((p) => p.groupe === g) as p (p.cle)}
+        <li class="flex flex-wrap items-center justify-between gap-2 py-2" class:opacity-60={p.ecartee}>
+          <span class="flex min-w-0 items-start gap-2">
+            {#if p.papiers.length}<Check class="mt-0.5 size-4 flex-none text-primary" aria-hidden="true" />{:else}<span class="mt-0.5 size-4 flex-none rounded-full border border-input" aria-hidden="true"></span>{/if}
+            <span class="min-w-0">
+              <span class="font-medium">{p.nom}</span>
+              <span class="block break-all text-sm text-muted-foreground">{p.ecartee ? 'Pas concerné' : p.papiers.length ? 'Dans le livre : ' + p.papiers.join(', ') : 'À déposer'}</span>
+            </span>
+          </span>
+          <span class="flex flex-wrap items-center gap-1.5">
+            {#if p.ecartee}
+              <Button variant="outline" onclick={() => ecarter(p, false)} disabled={attente || lectureSeule}>Proposer de nouveau</Button>
+            {:else}
+              <label class="deposer" class:inactif={attente || lectureSeule}>{p.papiers.length ? 'Ajouter une page' : 'Déposer'}
+                <input type="file" multiple accept={ACCEPTES.join(',')} disabled={attente || lectureSeule} aria-label={'Déposer : ' + p.nom}
+                       onchange={(e) => e.currentTarget.files.length && deposerPour(p, e.currentTarget)} /></label>
+              {#if !p.papiers.length}<Button variant="outline" onclick={() => ecarter(p, true)} disabled={attente || lectureSeule} aria-label={'Pas concerné : ' + p.nom}>Pas concerné</Button>{/if}
+            {/if}
+          </span>
+        </li>
+      {/each}
+    </ul>
+  {/each}
+  <h3 class="etiquette mt-5">Dans le livre</h3>
+{/if}
 <p class="mt-3 text-muted-foreground">Dans l'ordre du livre. Les papiers ne s'affichent pas et ne se téléchargent pas ici : seul le livre chiffré sort.</p>
 <ol class="mt-2 divide-y" aria-label="Papiers">
   {#each papiers as p, i (p.nom)}
@@ -61,7 +107,7 @@
 
 <div class="mt-3">
   <Depot nom="Déposer des papiers" multiple accepte={['.pdf', '.jpg', '.jpeg', '.png']} desactive={attente || lectureSeule}
-         texte="Glisse tes papiers ici" aide="PDF, JPG ou PNG, 50 Mo au plus chacun. Ils sont rangés à la fin du livre."
+         texte="Glisse tes papiers ici" aide="Tout autre papier : PDF, JPG ou PNG, 50 Mo au plus chacun. Ils sont rangés à la fin du livre."
          onfichiers={deposer} />
 </div>
 {#if attente}<p class="mt-2 text-sm text-muted-foreground">En cours…</p>{/if}
@@ -89,3 +135,11 @@
   </ul>
   <p class="mt-1 text-sm text-muted-foreground">Effacer supprime le fichier du dossier du kit. La corbeille du NAS et les sauvegardes peuvent en garder une copie.</p>
 {/if}
+
+<style>
+  .deposer { position: relative; display: inline-flex; align-items: center; min-height: 2.5rem; padding: 0 0.9rem; border-radius: 0.5rem; cursor: pointer;
+             background: var(--primary); color: var(--primary-foreground); font-size: 0.875rem; font-weight: 500; }
+  .deposer:focus-within { outline: 2px solid var(--ring); outline-offset: 2px; }
+  .deposer.inactif { opacity: 0.5; cursor: not-allowed; }
+  .deposer input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+</style>

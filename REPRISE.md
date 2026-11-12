@@ -9,6 +9,7 @@ Format commun des applis : dépôt `socle`, `docs/format.md`.
 - **2.1.0** (11/11/2026) : les écritures (`app/ecrits.py`). Publiée, **pas encore vue sur le NAS**.
   À déployer après la 2.0.0, une fois celle-ci vue en vrai (Home Assistant, carnet, une livraison).
 - **2.1.1** (12/11/2026) : glisser-déposer (`frontend/src/lib/kit/Depot.svelte`) ; `latest` de nouveau publiée.
+- **2.2.0** (12/11/2026) : papiers conseillés dans le livre 05 (`ecrits.PIECES`, `ecrits.pieces`, `config/papiers-conseilles.yaml` pour les lignes écartées). Un papier répond à une ligne par les mots de son nom.
 - Idées gardées pour plus tard : dates d'expiration des papiers, batterie de la liseuse, renommer un texte.
 
 ## Ce qu'il ne faut pas casser

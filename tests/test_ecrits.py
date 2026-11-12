@@ -165,6 +165,26 @@ def test_deposer_un_papier_le_range_a_la_fin_sans_rien_ecraser(ecran, jeu):
     assert generate.NOM_05 in ecran.get("/status").json()["livres"] and "Passeport" not in str(ecran.get("/status").json())
 
 
+def test_papiers_conseilles_deposer_reconnaitre_ecarter(ecran, jeu):
+    p = {x["cle"]: x for x in ecran.get("/api/livres").json()["pieces"]}
+    assert len(p) >= 12 and not p["passeport"]["papiers"] and not p["identite"]["ecartee"]
+    d = ecran.put("/api/papiers", params={"nom": "IMG_0042.png", "piece": "identite"}, content=PNG).json()
+    assert noms(d)[-1] == "02-Carte-d-identite.png"                    # le fichier prend le nom de la ligne
+    d = ecran.put("/api/papiers", params={"nom": "verso.png", "piece": "identite"}, content=PNG).json()
+    assert noms(d)[-1] == "03-Carte-d-identite-2.png"
+    d = ecran.put("/api/papiers", params={"nom": "Mon passeport 2031.pdf"}, content=PDF).json()   # déposé librement : reconnu à son nom
+    p = {x["cle"]: x for x in d["pieces"]}
+    assert len(p["identite"]["papiers"]) == 2 and p["passeport"]["papiers"] == ["04-Mon-passeport-2031.pdf"]
+    assert ecran.put("/api/papiers", params={"nom": "a.png", "piece": "inconnue"}, content=PNG).status_code == 404
+    d = ecran.post("/api/papiers/conseille", json={"cle": "animaux", "ecartee": True}).json()
+    assert {x["cle"]: x for x in d["pieces"]}["animaux"]["ecartee"]
+    d = ecran.post("/api/papiers/conseille", json={"cle": "animaux", "ecartee": False}).json()
+    assert not {x["cle"]: x for x in d["pieces"]}["animaux"]["ecartee"]
+    assert ecran.post("/api/papiers/conseille", json={"cle": "x", "ecartee": True}).status_code == 404
+    journal = str(ecran.get("/api/reglages").json()["journal"])
+    assert "identite" not in journal.lower() and "passeport" not in journal.lower()
+
+
 def test_papier_trop_lourd(ecran, monkeypatch):
     monkeypatch.setattr(ecrits, "MAX_PAPIER", 1000)
     assert ecran.put("/api/papiers", params={"nom": "gros.pdf"}, content=PDF + b"0" * 2000).status_code == 413

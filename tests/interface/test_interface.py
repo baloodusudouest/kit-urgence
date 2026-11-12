@@ -117,7 +117,7 @@ def test_noter_l_essai_demande_les_quatre_points(page):
 def test_les_papiers_ne_montrent_que_des_noms(page):
     aller(page, "Kit")
     page.get_by_role("button", name=re.compile("Papiers")).click()
-    liste = page.get_by_role("list", name="Papiers")
+    liste = page.get_by_role("list", name="Papiers", exact=True)
     assert "01-carte.png" in liste.inner_text()
     assert page.locator("main img").count() == 0                    # aucun aperçu
     lien = page.get_by_role("link", name=re.compile("Télécharger"))
@@ -268,3 +268,23 @@ def test_verifier_puis_livrer_depuis_connexion(page):
     aller(page, "À traiter")
     assert tuile(page, "Liseuse pas à jour").count() == 0
     assert "à jour sur la liseuse" in page.locator("#phrase").inner_text()
+
+
+def test_papiers_conseilles_deposer_depuis_une_ligne(page, tmp_path):
+    ouvrir_livre(page, "Papiers")
+    from tests.conftest import PNG
+    fichier = tmp_path / "scan.png"
+    fichier.write_bytes(PNG)
+    sante = page.get_by_role("list", name="Papiers conseillés : Santé")
+    ligne = sante.locator("li", has_text="Carte de mutuelle")
+    if "Dans le livre" not in ligne.inner_text():
+        assert "À déposer" in ligne.inner_text()
+        page.locator("input[type=file][aria-label='Déposer : Carte de mutuelle']").set_input_files(str(fichier))
+        page.locator("#message-papiers", has_text="Carte de mutuelle").wait_for()
+    assert "Carte-de-mutuelle" in sante.locator("li", has_text="Carte de mutuelle").inner_text()
+    animaux = page.get_by_role("list", name="Papiers conseillés : Animaux").locator("li")
+    animaux.get_by_role("button", name=re.compile("^Pas concerné")).click()
+    page.locator("#message-papiers", has_text="ne te sera plus proposé").wait_for()
+    animaux.get_by_role("button", name="Proposer de nouveau").click()
+    page.locator("#message-papiers", has_text="de nouveau proposé").wait_for()
+    assert page.locator("main img").count() == 0

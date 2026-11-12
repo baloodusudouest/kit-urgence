@@ -94,7 +94,7 @@
               <Numeros numeros={d.numeros} {lectureSeule} onchange={lire} onerreur={refus} />
 
             {:else if l.numero === '05'}
-              <Papiers papiers={d.papiers} retires={d.retires} {lectureSeule} onchange={lire} onerreur={refus} />
+              <Papiers papiers={d.papiers} pieces={d.pieces || []} retires={d.retires} {lectureSeule} onchange={lire} onerreur={refus} />
 
             {:else if l.papier}
               <p class="mt-3 text-muted-foreground">À imprimer et à ranger avec la liseuse. Le mot de passe des papiers n'y figure pas : il est sur la fiche manuscrite, rangée à part.</p>

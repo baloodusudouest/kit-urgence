@@ -262,7 +262,7 @@ def api_etat():
 def api_livres():
     cfg = config.load()
     return {"livres": etat.livres(cfg), "textes": etat.textes(), "guides": etat.guides(),
-            "papiers": etat.liste_papiers(), "retires": ecrits.papiers_retires(), "numeros": etat.numeros(),
+            "papiers": etat.liste_papiers(), "pieces": ecrits.pieces(), "retires": ecrits.papiers_retires(), "numeros": etat.numeros(),
             **etat.liste_contacts(cfg)}
 
 
@@ -487,10 +487,16 @@ def api_retirer_guide(indice: int):
 
 
 @app.put("/api/papiers")
-async def api_deposer_papier(request: Request, nom: str):
+async def api_deposer_papier(request: Request, nom: str, piece: str | None = None):
     exiger_ecriture("dans les sources du kit")
     contenu = await _corps_brut(request, ecrits.MAX_PAPIER)
-    _ecrire("Un papier déposé", ecrits.deposer_papier, nom, contenu)
+    _ecrire("Un papier déposé", ecrits.deposer_papier, nom, contenu, piece)
+    return _apres()
+
+
+@app.post("/api/papiers/conseille")
+def api_piece(corps: dict = Body(...)):
+    _ecrire("La liste des papiers conseillés réglée", ecrits.ecarter_piece, str(corps.get("cle", "")), bool(corps.get("ecartee")))
     return _apres()
 
 

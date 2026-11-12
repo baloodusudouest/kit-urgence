@@ -378,7 +378,59 @@ def _plats() -> list[Path]:
     return docs
 
 
-def deposer_papier(nom: str, contenu: bytes) -> str:
+# 2.2.0 : les papiers conseillés. Une liste de ce qu'il vaut mieux avoir en copie sur soi ; un papier
+# déposé « compte » pour une ligne quand son nom contient un de ses mots. Rien n'est obligatoire :
+# une ligne qui ne concerne pas le foyer s'écarte.
+PIECES = [
+    {"cle": "identite", "groupe": "Identité", "nom": "Carte d'identité", "mots": ["identite", "cni"]},
+    {"cle": "passeport", "groupe": "Identité", "nom": "Passeport", "mots": ["passeport"]},
+    {"cle": "permis", "groupe": "Identité", "nom": "Permis de conduire", "mots": ["permis"]},
+    {"cle": "livret", "groupe": "Identité", "nom": "Livret de famille", "mots": ["livret"]},
+    {"cle": "vitale", "groupe": "Santé", "nom": "Carte Vitale", "mots": ["vitale"]},
+    {"cle": "mutuelle", "groupe": "Santé", "nom": "Carte de mutuelle", "mots": ["mutuelle"]},
+    {"cle": "ordonnances", "groupe": "Santé", "nom": "Ordonnances en cours", "mots": ["ordonnance"]},
+    {"cle": "carnet-sante", "groupe": "Santé", "nom": "Carnet de santé et vaccinations", "mots": ["carnet-de-sante", "vaccin"]},
+    {"cle": "fiche-medicale", "groupe": "Santé", "nom": "Fiche médicale (groupe sanguin, allergies, traitements)", "mots": ["medical", "sanguin", "allergie"]},
+    {"cle": "habitation", "groupe": "Logement", "nom": "Assurance habitation", "mots": ["habitation"]},
+    {"cle": "logement", "groupe": "Logement", "nom": "Titre de propriété ou bail", "mots": ["propriete", "bail"]},
+    {"cle": "domicile", "groupe": "Logement", "nom": "Justificatif de domicile", "mots": ["domicile"]},
+    {"cle": "carte-grise", "groupe": "Véhicule", "nom": "Carte grise", "mots": ["grise", "immatriculation"]},
+    {"cle": "assurance-auto", "groupe": "Véhicule", "nom": "Assurance auto", "mots": ["assurance-auto", "assurance-voiture", "carte-verte"]},
+    {"cle": "rib", "groupe": "Argent", "nom": "RIB", "mots": ["rib"]},
+    {"cle": "animaux", "groupe": "Animaux", "nom": "Carnet de santé et identification de l'animal", "mots": ["animal", "animaux", "veterinaire"]},
+]
+PIECES_YAML = DATA / "config" / "papiers-conseilles.yaml"
+
+
+def _mots_du_nom(nom: str) -> str:
+    tige = _PREFIXE.sub("", Path(nom).stem)
+    tige = unicodedata.normalize("NFKD", tige).encode("ascii", "ignore").decode().lower()
+    return "-" + re.sub(r"[^a-z0-9]+", "-", tige).strip("-") + "-"
+
+
+def pieces() -> list[dict]:
+    """La liste conseillée, avec pour chaque ligne les papiers déposés qui y répondent."""
+    ecartees = set(_lire_yaml(PIECES_YAML).get("ecartees") or [])
+    deposes = [(p.name, _mots_du_nom(p.name)) for p in _plats()]
+    return [{"cle": x["cle"], "groupe": x["groupe"], "nom": x["nom"], "ecartee": x["cle"] in ecartees,
+             "papiers": [n for n, mots in deposes if any("-" + m in mots for m in x["mots"])]} for x in PIECES]
+
+
+def ecarter_piece(cle: str, oui: bool) -> None:
+    if cle not in {x["cle"] for x in PIECES}:
+        raise Refus("Papier conseillé inconnu.", 404)
+    ecartees = set(_lire_yaml(PIECES_YAML).get("ecartees") or [])
+    ecartees.add(cle) if oui else ecartees.discard(cle)
+    _ecrire_yaml(PIECES_YAML, {"ecartees": sorted(ecartees)})
+
+
+def deposer_papier(nom: str, contenu: bytes, piece: str | None = None) -> str:
+    if piece:                                   # déposé depuis une ligne conseillée : il en prend le nom
+        ligne = next((x for x in PIECES if x["cle"] == piece), None)
+        if ligne is None:
+            raise Refus("Papier conseillé inconnu.", 404)
+        deja = len(next(p for p in pieces() if p["cle"] == piece)["papiers"])
+        nom = ligne["nom"].split(" (")[0] + (f" {deja + 1}" if deja else "") + Path(str(nom)).suffix
     nom = nettoyer_nom(nom, EXT_PAPIERS)
     if not contenu:
         raise Refus("Fichier vide.")
