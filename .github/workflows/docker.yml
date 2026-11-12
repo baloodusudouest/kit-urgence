@@ -50,10 +50,15 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Publication
-        run: |
-          depot=ghcr.io/${{ github.repository_owner }}/kit-urgence
-          for etiquette in latest "${{ steps.v.outputs.version }}" "sha-${{ github.sha }}"; do
-            docker tag kit-urgence:essai "$depot:$etiquette"
-            docker push "$depot:$etiquette"
-          done
+      # Publication par la même action que les autres applis (un « docker push » de l'image chargée
+      # donnait une image que le Docker du NAS refusait : « No such image »). Le cache rend ce second passage immédiat.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/kit-urgence:latest
+            ghcr.io/${{ github.repository_owner }}/kit-urgence:${{ steps.v.outputs.version }}
+          cache-from: type=gha
