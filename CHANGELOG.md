@@ -1,5 +1,9 @@
 # Changelog — kit-urgence
 
+## 2.1.2 — 2026-11-12
+- Icône de l'appli (onglet du navigateur, écran d'accueil de l'iPhone) : une trousse rouge brique.
+- L'image est de nouveau publiée par la même voie que les autres applis (le NAS refusait la précédente).
+
 ## 2.1.1 — 2026-11-12
 - **Glisser-déposer** : les papiers et les fichiers des guides se déposent en les glissant depuis l'explorateur
   sur la zone prévue (ou en les choisissant, comme avant). Plusieurs papiers à la fois. Un fichier d'un autre
