@@ -288,3 +288,19 @@ def test_papiers_conseilles_deposer_depuis_une_ligne(page, tmp_path):
     animaux.get_by_role("button", name="Proposer de nouveau").click()
     page.locator("#message-papiers", has_text="de nouveau proposé").wait_for()
     assert page.locator("main img").count() == 0
+
+
+def test_papiers_conseilles_glisser_sur_une_ligne(page):
+    ouvrir_livre(page, "Papiers")
+    ligne = page.get_by_role("list", name="Papiers conseillés : Logement").locator("li", has_text="Justificatif de domicile")
+    avant = ligne.inner_text().count("Justificatif-de-domicile")
+    import base64
+    from tests.conftest import PNG
+    donnees = page.evaluate_handle("""(b64) => { const d = new DataTransfer();
+        d.items.add(new File([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))], 'scan.png', { type: 'image/png' })); return d }""",
+        base64.b64encode(PNG).decode())
+    ligne.dispatch_event("dragover", {"dataTransfer": donnees})
+    assert "Lâche ici" in ligne.inner_text()
+    ligne.dispatch_event("drop", {"dataTransfer": donnees})
+    page.locator("#message-papiers", has_text="Justificatif de domicile").wait_for()
+    assert ligne.inner_text().count("Justificatif-de-domicile") == avant + 1

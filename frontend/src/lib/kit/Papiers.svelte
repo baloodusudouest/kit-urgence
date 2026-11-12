@@ -28,9 +28,15 @@
   const groupes = $derived([...new Set(pieces.map((p) => p.groupe))])
   const aFaire = $derived(pieces.filter((p) => !p.ecartee && !p.papiers.length).length)
   const concernees = $derived(pieces.filter((p) => !p.ecartee).length)
-  function deposerPour(piece, entree) {
-    const f = [...entree.files].filter((x) => ACCEPTES.some((e) => x.name.toLowerCase().endsWith(e)))
-    entree.value = ''
+  let survol = $state('')       // 2.2.1 : ligne au-dessus de laquelle on tient un fichier
+  const libre = (p) => !p.ecartee && !attente && !lectureSeule
+  function lacher(e, p) {
+    e.preventDefault(); survol = ''
+    if (libre(p) && e.dataTransfer?.files?.length) deposerPour(p, e.dataTransfer.files)
+  }
+  function deposerPour(piece, fichiers, entree) {
+    const f = [...fichiers].filter((x) => ACCEPTES.some((e) => x.name.toLowerCase().endsWith(e)))
+    if (entree) entree.value = ''
     if (!f.length) { message = 'Seuls PDF, JPG et PNG sont acceptés.'; return }
     return essayer(async () => { for (const x of f) await api.deposer('/api/papiers', x, { piece: piece.cle }) },
       `« ${piece.nom} » : ${f.length} fichier(s) déposé(s). Le livre sera refait à la prochaine fabrication.`)
@@ -51,17 +57,21 @@
 
 {#if pieces.length}
   <h3 class="etiquette mt-4">Papiers à toujours avoir sur soi</h3>
-  <p class="mt-1 text-muted-foreground">Une copie de chacun, à déposer ici : {concernees - aFaire} sur {concernees} dans le livre. Une ligne se coche toute seule quand un papier déposé porte son nom. Rien n'est obligatoire : écarte ce qui ne te concerne pas.</p>
+  <p class="mt-1 text-muted-foreground">Une copie de chacun : glisse le fichier sur sa ligne, ou touche « Déposer ». {concernees - aFaire} sur {concernees} dans le livre. Une ligne se coche toute seule quand un papier déposé porte son nom. Rien n'est obligatoire : écarte ce qui ne te concerne pas.</p>
   {#each groupes as g}
     <h4 class="mt-3 text-sm font-medium text-muted-foreground">{g}</h4>
     <ul class="divide-y" aria-label={'Papiers conseillés : ' + g}>
       {#each pieces.filter((p) => p.groupe === g) as p (p.cle)}
-        <li class="flex flex-wrap items-center justify-between gap-2 py-2" class:opacity-60={p.ecartee}>
+        <li class="ligne flex flex-wrap items-center justify-between gap-2 py-2" class:opacity-60={p.ecartee} class:survol={survol === p.cle}
+            ondragenter={(e) => { e.preventDefault(); if (libre(p)) survol = p.cle }}
+            ondragover={(e) => { e.preventDefault(); if (libre(p)) survol = p.cle }}
+            ondragleave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) survol = '' }}
+            ondrop={(e) => lacher(e, p)}>
           <span class="flex min-w-0 items-start gap-2">
             {#if p.papiers.length}<Check class="mt-0.5 size-4 flex-none text-primary" aria-hidden="true" />{:else}<span class="mt-0.5 size-4 flex-none rounded-full border border-input" aria-hidden="true"></span>{/if}
             <span class="min-w-0">
               <span class="font-medium">{p.nom}</span>
-              <span class="block break-all text-sm text-muted-foreground">{p.ecartee ? 'Pas concerné' : p.papiers.length ? 'Dans le livre : ' + p.papiers.join(', ') : 'À déposer'}</span>
+              <span class="block break-all text-sm text-muted-foreground">{survol === p.cle ? 'Lâche ici' : p.ecartee ? 'Pas concerné' : p.papiers.length ? 'Dans le livre : ' + p.papiers.join(', ') : 'À déposer'}</span>
             </span>
           </span>
           <span class="flex flex-wrap items-center gap-1.5">
@@ -70,7 +80,7 @@
             {:else}
               <label class="deposer" class:inactif={attente || lectureSeule}>{p.papiers.length ? 'Ajouter une page' : 'Déposer'}
                 <input type="file" multiple accept={ACCEPTES.join(',')} disabled={attente || lectureSeule} aria-label={'Déposer : ' + p.nom}
-                       onchange={(e) => e.currentTarget.files.length && deposerPour(p, e.currentTarget)} /></label>
+                       onchange={(e) => e.currentTarget.files.length && deposerPour(p, e.currentTarget.files, e.currentTarget)} /></label>
               {#if !p.papiers.length}<Button variant="outline" onclick={() => ecarter(p, true)} disabled={attente || lectureSeule} aria-label={'Pas concerné : ' + p.nom}>Pas concerné</Button>{/if}
             {/if}
           </span>
@@ -137,6 +147,8 @@
 {/if}
 
 <style>
+  .ligne { border-radius: 0.6rem; }
+  .ligne.survol { outline: 2px solid var(--app); outline-offset: 2px; background: color-mix(in srgb, var(--app) 10%, var(--background)); }
   .deposer { position: relative; display: inline-flex; align-items: center; min-height: 2.5rem; padding: 0 0.9rem; border-radius: 0.5rem; cursor: pointer;
              background: var(--primary); color: var(--primary-foreground); font-size: 0.875rem; font-weight: 500; }
   .deposer:focus-within { outline: 2px solid var(--ring); outline-offset: 2px; }

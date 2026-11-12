@@ -1,5 +1,8 @@
 # Changelog — kit-urgence
 
+## 2.2.1 — 2026-11-12
+- Papiers conseillés : on peut glisser un fichier directement sur une ligne (elle s'allume et dit « Lâche ici »), en plus du bouton « Déposer ».
+
 ## 2.2.0 — 2026-11-12
 - **Papiers à toujours avoir sur soi** : le livre des papiers (05) propose une liste de copies à déposer, par thème (identité, santé, logement, véhicule, argent, animaux). Chaque ligne a son bouton « Déposer » : le fichier prend le nom de la ligne. Une ligne se coche seule quand un papier déposé porte son nom ; « Pas concerné » l'écarte. Rien n'est obligatoire.
 - Tests : 41 du back, 29 d'écran.
