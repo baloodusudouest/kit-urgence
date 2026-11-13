@@ -5,6 +5,7 @@ Format commun des applis : dépôt `socle`, `docs/format.md`.
 
 ## Où on en est
 
+- **2.3.0** (13/11/2026) : connexion commune avec l'Anneau — cookie `maison_session` (accepté ; `Sessions.connecte`, `commun_valide` dans `app/auth.py`). Jamais essayée sur la vraie installation.
 - **2.0.0** (11/11/2026) : interface en lecture, sécurité, contrôles. Publiée, **pas encore vue sur le NAS**.
 - **2.1.0** (11/11/2026) : les écritures (`app/ecrits.py`). Publiée, **pas encore vue sur le NAS**.
   À déployer après la 2.0.0, une fois celle-ci vue en vrai (Home Assistant, carnet, une livraison).

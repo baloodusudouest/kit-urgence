@@ -19,7 +19,7 @@ from fastapi import Body, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 
 from . import __version__, config, ecrits, etat, generate, journal, status, sync
-from .auth import DUREE, Sessions
+from .auth import COMMUN, DUREE, Sessions
 from .garde import LectureSeule, exiger_ecriture, lecture_seule
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"),
@@ -61,7 +61,7 @@ async def garde(request: Request, appel):
     if chemin.startswith("/api/"):
         libre = chemin == "/api/session" or (chemin == "/api/connexion" and request.method == "POST")
         s = sessions()
-        if not libre and not s.valide(request.cookies.get(s.cookie)):
+        if not libre and not s.connecte(request.cookies):
             return JSONResponse({"detail": "Connexion nécessaire."}, status_code=401)
     reponse = await appel(request)
     if chemin.startswith("/api/"):
@@ -221,7 +221,7 @@ def _papier_imprime() -> dict:
 @app.get("/api/session")
 def session(request: Request):
     s = sessions()
-    return {"connecte": s.valide(request.cookies.get(s.cookie)), "version": __version__,
+    return {"connecte": s.connecte(request.cookies), "version": __version__,
             "lecture_seule": lecture_seule()}
 
 
@@ -248,6 +248,7 @@ def deconnexion():
         pass
     r = JSONResponse({"ok": True})
     r.delete_cookie(s.cookie)
+    r.delete_cookie(COMMUN)      # « Se déconnecter » ferme aussi la connexion commune
     return r
 
 

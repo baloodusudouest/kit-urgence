@@ -1,5 +1,8 @@
 # Changelog — kit-urgence
 
+## 2.3.0 — 2026-11-13
+- **Connexion commune.** Connecté à l'Anneau, on n'a plus à se connecter ici : l'appli accepte le cookie « maison_session » que l'Anneau pose, quand elle est servie par la même adresse que lui. Le cookie est signé avec le mot de passe commun : une appli qui a un autre mot de passe continue de demander le sien. Il vaut trente jours, ou jusqu'au changement du mot de passe ; « Se déconnecter » le retire du navigateur.
+
 ## 2.2.1 — 2026-11-12
 - Papiers conseillés : on peut glisser un fichier directement sur une ligne (elle s'allume et dit « Lâche ici »), en plus du bouton « Déposer ».
 
