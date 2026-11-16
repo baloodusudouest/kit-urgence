@@ -552,7 +552,9 @@ def api_effacer(corps: dict = Body(...)):
 
 @app.put("/api/reglages")
 def api_enregistrer_reglages(corps=Body(...)):
-    """Réglages internes du kit : permis même en lecture seule (2.5). Mauvais type → 400, hors bornes → 422."""
+    """Réglages du kit. 2.5.1 (choix de Julien) : refusés en lecture seule, comme avant la 2.5.
+    Mauvais type → 400, hors bornes → 422."""
+    exiger_ecriture("dans les réglages du kit")
     with _TRAVAIL:
         ecrits.enregistrer_reglages(corps)
     journal.noter("Réglages modifiés")
@@ -612,8 +614,9 @@ def api_restaurer_voir(le: str = ""):
 
 @app.post("/api/restaurer")
 def api_restaurer(corps: dict = Body(...)):
-    """Applique les réglages d'une sauvegarde qui diffèrent d'aujourd'hui. Réglages internes seulement :
-    permis même en lecture seule. Les valeurs passent par les mêmes contrôles que l'écran."""
+    """Applique les réglages d'une sauvegarde qui diffèrent d'aujourd'hui. Refusé en lecture seule (2.5.1,
+    choix de Julien). Les valeurs passent par les mêmes contrôles que l'écran."""
+    exiger_ecriture("dans les réglages du kit")
     le = str(corps.get("le", ""))
     if not le:
         raise HTTPException(400, "Choisis la date de la sauvegarde à restaurer.")

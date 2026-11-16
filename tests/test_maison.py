@@ -220,11 +220,14 @@ def test_restaurer_dates_differences_application(ecran, monkeypatch):
     assert ecran.post("/api/restaurer", json={}).status_code == 400
 
 
-def test_restaurer_permis_en_lecture_seule_et_valeur_refusee(ecran, monkeypatch):
+def test_restaurer_refuse_en_lecture_seule_et_valeur_refusee(ecran, monkeypatch):
     monkeypatch.setenv("MAISON_JETON", COMMUN)
-    monkeypatch.setenv("MAISON_LECTURE_SEULE", "oui")
     monkeypatch.setattr(main, "LIRE_ANNEAU", FauxAnneau({"2026-11-15": {"titre_foyer": "Maison du Verger"},
                                                          "2026-11-16": {"liseuse_dossier": "/"}}))
+    monkeypatch.setenv("MAISON_LECTURE_SEULE", "oui")                        # 2.5.1 : refusé en lecture seule
+    assert ecran.post("/api/restaurer", json={"le": "2026-11-15"}).status_code == 409
+    assert config.load().titre_foyer != "Maison du Verger"
+    monkeypatch.setenv("MAISON_LECTURE_SEULE", "")
     assert ecran.post("/api/restaurer", json={"le": "2026-11-15"}).status_code == 200
     assert config.load().titre_foyer == "Maison du Verger"
     r = ecran.post("/api/restaurer", json={"le": "2026-11-16"})              # dossier dangereux : mêmes contrôles

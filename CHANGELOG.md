@@ -1,5 +1,9 @@
 # Changelog — kit-urgence
 
+## 2.5.1 — 2026-11-16
+
+- **Lecture seule stricte pour les réglages** (choix de Julien) : en lecture seule, les réglages du kit (foyer, liseuse, recherche) ne se changent plus ni ne se restaurent depuis l'Anneau, comme avant la 2.5 ; champs et boutons grisés dans Réglages. Les autres changements de la 2.5.0 restent.
+
 ## 2.5.0 — 16 novembre 2026
 - **Réglages sauvegardés chez l'Anneau** (module commun `app/maison.py`, contrat 2, copié tel quel) :
   - le kit n'avait aucun réglage d'usage dans la stack ; ses réglages de l'écran Réglages (nom du foyer, adresse, port et dossier de la liseuse, intervalle de recherche) restent dans `config/config.yaml` ;

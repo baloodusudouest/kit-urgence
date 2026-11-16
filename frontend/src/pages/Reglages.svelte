@@ -1,7 +1,6 @@
 <script>
   // « Réglages » : ce qui n'est pas un service. En bas : le journal, la version, la déconnexion.
-  // 2.5 : les réglages du kit se changent (et se restaurent) même en lecture seule : ce sont ses réglages
-  // internes ; la lecture seule protège la liseuse et les sources des livres.
+  // 2.5.1 (choix de Julien) : en lecture seule, les réglages du kit ne se changent ni ne se restaurent, comme avant.
   import { onMount } from 'svelte'
   import { api } from '$lib/api.js'
   import { quand } from '$lib/format.js'
@@ -69,17 +68,17 @@
     <h2 class="text-lg font-semibold">Le kit</h2>
     <form class="mt-3 grid gap-3 text-sm md:grid-cols-2" onsubmit={enregistrer}>
       <label class="flex flex-col gap-1 md:col-span-2">Nom du foyer (sur la page de garde de chaque livre)
-        <input bind:value={f.titre_foyer} required maxlength="80" class={champ} /></label>
+        <input bind:value={f.titre_foyer} required maxlength="80" disabled={d.lecture_seule} class={champ} /></label>
       <label class="flex flex-col gap-1">Adresse de la liseuse (IP fixe)
-        <input bind:value={f.liseuse.host} maxlength="100" placeholder="192.168.1.50" class={champ} /></label>
+        <input bind:value={f.liseuse.host} maxlength="100" placeholder="192.168.1.50" disabled={d.lecture_seule} class={champ} /></label>
       <label class="flex flex-col gap-1">Port du serveur SSH de KOReader
-        <input type="number" min="1" max="65535" bind:value={f.liseuse.port} required class={champ} /></label>
+        <input type="number" min="1" max="65535" bind:value={f.liseuse.port} required disabled={d.lecture_seule} class={champ} /></label>
       <label class="flex flex-col gap-1 md:col-span-2">Dossier des livres sur la liseuse
-        <input bind:value={f.liseuse.dossier} required maxlength="200" class={champ} />
+        <input bind:value={f.liseuse.dossier} required maxlength="200" disabled={d.lecture_seule} class={champ} />
         <span class="text-muted-foreground">La livraison y efface les livres qui ne sont plus dans le kit : un dossier réservé au kit.</span></label>
       <label class="flex flex-col gap-1">Recherche de la liseuse, toutes les (secondes)
-        <input type="number" min="15" max="3600" bind:value={f.scrutation_secondes} required class={champ} /></label>
-      <div class="flex items-end"><Button type="submit" disabled={attente}>Enregistrer</Button></div>
+        <input type="number" min="15" max="3600" bind:value={f.scrutation_secondes} required disabled={d.lecture_seule} class={champ} /></label>
+      <div class="flex items-end"><Button type="submit" disabled={attente || d.lecture_seule}>Enregistrer</Button></div>
     </form>
     {#if message}<p class="mt-2 text-sm" role="status" id="message">{message}</p>{/if}
     <p class="mt-4 text-sm">Mot de passe des papiers : {d.mot_de_passe_papiers ? 'réglé dans la stack' : 'absent de la stack — le livre des papiers n\'est pas fabriqué'}.</p>
@@ -112,7 +111,7 @@
             </li>
           {/each}
         </ul>
-        <div class="mt-3"><Button onclick={restaurer} disabled={rattente}>Restaurer ces réglages</Button></div>
+        <div class="mt-3"><Button onclick={restaurer} disabled={rattente || d.lecture_seule}>Restaurer ces réglages</Button></div>
       {/if}
     {/if}
     {#if rmessage}<p class="mt-2 text-sm" role="status" id="message-restaurer">{rmessage}</p>{/if}
@@ -123,8 +122,8 @@
     <p class="mt-1 text-sm text-muted-foreground">
       {d.lecture_seule
         ? (d.lecture_seule_origine === 'maison'
-          ? 'Lecture seule pour toute la maison : le kit fabrique ses livres mais n\'écrit ni sur la liseuse ni dans ses sources (ses réglages, si). À retirer dans la stack (MAISON_LECTURE_SEULE) quand tout va bien, ou KIT_LECTURE_SEULE=non pour que le kit seul écrive.'
-          : 'Lecture seule pour cette appli : le kit fabrique ses livres mais n\'écrit ni sur la liseuse ni dans ses sources (ses réglages, si). À retirer dans la stack (KIT_LECTURE_SEULE) quand tout va bien.')
+          ? 'Lecture seule pour toute la maison : le kit fabrique ses livres mais n\'écrit ni sur la liseuse ni dans ses sources, ni dans ses réglages. À retirer dans la stack (MAISON_LECTURE_SEULE) quand tout va bien, ou KIT_LECTURE_SEULE=non pour que le kit seul écrive.'
+          : 'Lecture seule pour cette appli : le kit fabrique ses livres mais n\'écrit ni sur la liseuse ni dans ses sources, ni dans ses réglages. À retirer dans la stack (KIT_LECTURE_SEULE) quand tout va bien.')
         : 'Le kit écrit normalement. Pour le premier jour d\'une nouvelle version : KIT_LECTURE_SEULE=1 (le kit seul) ou MAISON_LECTURE_SEULE=oui (toute la maison) dans la stack.'}
     </p>
   </section>

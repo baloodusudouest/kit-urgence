@@ -5,6 +5,7 @@ Format commun des applis : dépôt `socle`, `docs/format.md`.
 
 ## Où on en est
 
+- **2.5.1** (16/11/2026) : `PUT /api/reglages` et `POST /api/restaurer` appellent `exiger_ecriture("dans les réglages du kit")` (409 en lecture seule), choix de Julien ; `Reglages.svelte` grise les champs et les boutons. Jamais essayé sur la vraie installation.
 - **2.5.0** (16/11/2026) : réglages sauvegardés et restaurés ; anciens noms retirés. Module `app/maison.py` au contrat 2 (copie du socle, ne pas le modifier ici).
   - Réglages d'usage : ceux de l'écran Réglages, gardés dans `config/config.yaml` (aucun n'était dans la stack, donc aucune reprise de variable). `app/sauvegarde.py` les présente à plat (`actuels`, `corps_ecran`) et tient la liste `EXCLUS` (utilisateur SSH, papiers, clé SSH, mots de passe, contacts).
   - `GET /externe/sauvegarde` (jeton commun seul, 404 si `MAISON_JETON` vide), `GET/POST /api/restaurer` (session ; faux Anneau des tests : `main.LIRE_ANNEAU`). La restauration repasse par `ecrits.enregistrer_reglages` (mêmes contrôles ; une valeur refusée → 422, rien n'est écrit).

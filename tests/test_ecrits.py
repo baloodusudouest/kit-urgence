@@ -73,15 +73,15 @@ def test_lecture_seule_refuse_toutes_les_ecritures_deux_fois(ecran, jeu, monkeyp
     assert not any("modifié" in l["quoi"] or "déposé" in l["quoi"] for l in ecran.get("/api/reglages").json()["journal"])
 
 
-def test_les_reglages_internes_se_changent_meme_en_lecture_seule(ecran, jeu, monkeypatch):
-    """2.5 : nom du foyer, liseuse, intervalle sont les réglages du kit lui-même ; la lecture seule protège
-    la liseuse et les sources des livres, pas eux."""
+def test_les_reglages_sont_refuses_en_lecture_seule(ecran, jeu, monkeypatch):
+    """2.5.1 (choix de Julien) : en lecture seule, les réglages du kit ne se changent pas, comme avant la 2.5."""
     monkeypatch.setenv("KIT_LECTURE_SEULE", "1")
+    avant = config.load().scrutation_secondes
     r = ecran.put("/api/reglages", json={"titre_foyer": "Maison du Puits", "scrutation_secondes": 90,
                                          "liseuse": {"host": "", "port": 2222, "user": "root",
                                                      "dossier": "/mnt/us/documents/Urgence"}})
-    assert r.status_code == 200 and r.json()["titre_foyer"] == "Maison du Puits"
-    assert config.load().scrutation_secondes == 90
+    assert r.status_code == 409
+    assert config.load().scrutation_secondes == avant
     assert ecran.post("/api/livrer").status_code == 409                       # la liseuse, elle, reste protégée
     with pytest.raises(Exception, match="lecture seule"):                    # et les sources aussi
         ecrits.enregistrer_texte("10-electricite.md", "# Autre\n")
