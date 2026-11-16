@@ -60,7 +60,6 @@ def test_lecture_seule_refuse_toutes_les_ecritures_deux_fois(ecran, jeu, monkeyp
         ecran.post("/api/papiers/ordre", json={"noms": ["01-carte.png"]}),
         ecran.put("/api/guides/fichier", params={"nom": "g.pdf", **GUIDE}, content=PDF),
         ecran.delete("/api/guides/0"),
-        ecran.put("/api/reglages", json={"titre_foyer": "x", "liseuse": {"dossier": "/a/b"}}),
     ]
     assert [r.status_code for r in appels] == [409] * len(appels)
     with pytest.raises(Exception, match="lecture seule"):                    # et au plus près du fichier
@@ -72,6 +71,20 @@ def test_lecture_seule_refuse_toutes_les_ecritures_deux_fois(ecran, jeu, monkeyp
     apres = {p: p.read_bytes() for p in (jeu / "data").rglob("*") if p.is_file() and "output" not in p.parts}
     assert apres == avant
     assert not any("modifié" in l["quoi"] or "déposé" in l["quoi"] for l in ecran.get("/api/reglages").json()["journal"])
+
+
+def test_les_reglages_internes_se_changent_meme_en_lecture_seule(ecran, jeu, monkeypatch):
+    """2.5 : nom du foyer, liseuse, intervalle sont les réglages du kit lui-même ; la lecture seule protège
+    la liseuse et les sources des livres, pas eux."""
+    monkeypatch.setenv("KIT_LECTURE_SEULE", "1")
+    r = ecran.put("/api/reglages", json={"titre_foyer": "Maison du Puits", "scrutation_secondes": 90,
+                                         "liseuse": {"host": "", "port": 2222, "user": "root",
+                                                     "dossier": "/mnt/us/documents/Urgence"}})
+    assert r.status_code == 200 and r.json()["titre_foyer"] == "Maison du Puits"
+    assert config.load().scrutation_secondes == 90
+    assert ecran.post("/api/livrer").status_code == 409                       # la liseuse, elle, reste protégée
+    with pytest.raises(Exception, match="lecture seule"):                    # et les sources aussi
+        ecrits.enregistrer_texte("10-electricite.md", "# Autre\n")
 
 
 # ---------------------------------------------------------------- textes
@@ -278,6 +291,12 @@ def test_reglages(ecran, jeu):
                     {"liseuse": {**bon["liseuse"], "host": "a b; rm"}}, {"titre_foyer": ""}, {"scrutation_secondes": 2},
                     {"liseuse": {**bon["liseuse"], "dossier": "/mnt/us/documents/Urgence; rm -rf x"}}):
         assert ecran.put("/api/reglages", json={**bon, **mauvais}).status_code == 422, mauvais
+    # 2.5 : un mauvais type → 400, avec un message clair
+    for mauvais in ({"scrutation_secondes": "souvent"}, {"scrutation_secondes": True}, {"liseuse": "192.0.2.50"},
+                    {"liseuse": {**bon["liseuse"], "port": [22]}}, {"titre_foyer": {"a": 1}}):
+        r = ecran.put("/api/reglages", json={**bon, **mauvais})
+        assert r.status_code == 400 and r.json()["detail"], mauvais
+    assert ecran.put("/api/reglages", json=["pas", "un", "dict"]).status_code == 400
     assert ecran.get("/api/etat").json()["tuiles"]["modifie"]["nombre"] == 1    # le nom du foyer est sur chaque page de garde
     assert list((jeu / "data" / "versions" / "config" / "config.yaml").iterdir())
 

@@ -37,8 +37,11 @@ Le workflow `.github/workflows/docker.yml` lance les tests puis publie `ghcr.io/
 
 ### 3. Service Docker
 Ajouter le service de `docker-compose.yml` à la stack et renseigner les variables de `.env.example` :
-`KIT_VERSION`, `KIT_DATA_DIR`, `KIT_STATE_DIR`, `KIT_PAPIERS_PASSWORD`, `KIT_API_TOKEN` et le mot de passe commun `CARNET_PASSWORD` (obligatoires), `KIT_CARNET_URL` et `KIT_LECTURE_SEULE` (facultatifs).
-Depuis la 2.4.0, variables communes de la maison : `MAISON_PASSWORD` (mot de passe commun ; repli `KIT_PASSWORD`), `MAISON_JETON` (jeton commun, accepté en plus de `API_TOKEN` sur les adresses à jeton, pour carnet), `MAISON_LECTURE_SEULE` (toute la maison ; `KIT_LECTURE_SEULE`, si elle dit oui ou non, l'emporte). `API_TOKEN` reste obligatoire tant que Home Assistant s'en sert. Le lien « Ouvrir dans carnet » prend l'adresse de la tuile « carnet » de l'Anneau, repli `KIT_CARNET_URL`.
+`KIT_VERSION`, `KIT_DATA_DIR`, `KIT_STATE_DIR`, `KIT_PAPIERS_PASSWORD`, `KIT_API_TOKEN` (jeton de Home Assistant) et le mot de passe commun `MAISON_PASSWORD` (obligatoires, 12 caractères au moins), `MAISON_JETON`, `MAISON_LECTURE_SEULE` et `KIT_LECTURE_SEULE` (facultatifs).
+- `MAISON_JETON` (jeton commun de la maison) est accepté en plus d'`API_TOKEN` sur les adresses à jeton (pour carnet) ; lui seul ouvre `GET /externe/sauvegarde`, lue chaque nuit par l'Anneau. `API_TOKEN` reste obligatoire : Home Assistant s'en sert.
+- `MAISON_LECTURE_SEULE` met toute la maison en lecture seule ; `KIT_LECTURE_SEULE`, si elle dit oui ou non, l'emporte pour le kit.
+- Depuis la 2.5.0, plus aucun ancien nom de variable n'est lu (voir `CHANGELOG.md`). Le lien « Ouvrir dans carnet » prend l'adresse de la tuile « carnet » de l'Anneau, sinon il n'apparaît pas.
+- Les réglages d'usage (nom du foyer, adresse, port et dossier de la liseuse, intervalle de recherche) n'ont pas de variable : ils se changent dans l'écran **Réglages**, même en lecture seule. L'Anneau les sauvegarde chaque nuit ; **Réglages › Restaurer les réglages** relit une sauvegarde, montre les différences et les applique. Ne sortent jamais du kit : papiers, clé et utilisateur SSH, mots de passe, contacts.
 
 ### 4. Autoriser le conteneur sur le Kindle
 Ouvrir l'interface (`http://<IP_DU_NAS>:8095`), écran **Connexion › Liseuse**, copier la clé, puis l'ajouter dans `koreader/settings/SSH/authorized_keys` (Kindle branché en USB, KOReader fermé).
@@ -68,6 +71,7 @@ Rappel le 1er du mois et en vigilance orange ou rouge : Kindle chargé → mode 
 | POST | `/generer` | régénération complète (jeton requis) |
 | POST | `/synchroniser` | livraison immédiate si le Kindle répond (jeton requis) |
 | POST | `/papier/imprime` | confirme l'impression de la version papier (jeton requis) |
+| GET | `/externe/sauvegarde` | réglages d'usage du kit pour l'Anneau (jeton commun `MAISON_JETON` seul ; 404 s'il est vide) |
 
 ## Plan B (SSH hors service)
 Copier le contenu de `output/Urgence/` dans `documents/Urgence/` du Kindle par USB. Les PDF s'ouvrent aussi sans KOReader ; les EPUB nécessitent KOReader.

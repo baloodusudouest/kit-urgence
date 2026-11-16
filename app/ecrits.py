@@ -20,7 +20,7 @@ import yaml
 
 from . import papiers as livre_papiers
 from .config import DATA
-from .garde import exiger_ecriture
+from .garde import exiger_ecriture, reglages_internes
 
 VERSIONS = DATA / "versions"
 RETIRES = DATA / "retires"
@@ -532,17 +532,45 @@ def effacer_papier(ident: str) -> None:
 CONFIG = DATA / "config" / "config.yaml"
 
 
+def _entier(valeur, quoi: str) -> int:
+    """Nombre entier venu de l'écran ou d'une sauvegarde ; un autre type est refusé (400)."""
+    if isinstance(valeur, bool) or isinstance(valeur, (dict, list)):
+        raise Refus(f"{quoi} est un nombre entier.", 400)
+    try:
+        return int(valeur)
+    except (TypeError, ValueError):
+        raise Refus(f"{quoi} est un nombre entier.", 400)
+
+
+def _texte_simple(valeur, quoi: str):
+    if isinstance(valeur, (dict, list, bool)):
+        raise Refus(f"{quoi} est un texte.", 400)
+    return valeur
+
+
 def enregistrer_reglages(corps: dict) -> None:
-    donnees = _lire_yaml(CONFIG)
+    """Réglages internes du kit (2.5 : permis même en lecture seule, voir `garde.reglages_internes`).
+    Mauvais type → 400 ; valeur hors des bornes → 422."""
+    if not isinstance(corps, dict):
+        raise Refus("Réglages attendus sous la forme {clé: valeur}.", 400)
     liseuse = corps.get("liseuse") or {}
-    hote = _champ(liseuse.get("host"), "l'adresse de la liseuse", 100, vide_admis=True)
+    if not isinstance(liseuse, dict):
+        raise Refus("Les réglages de la liseuse sont attendus sous la forme {clé: valeur}.", 400)
+    with reglages_internes():
+        _enregistrer_reglages(corps, liseuse)
+
+
+def _enregistrer_reglages(corps: dict, liseuse: dict) -> None:
+    donnees = _lire_yaml(CONFIG)
+    hote = _champ(_texte_simple(liseuse.get("host"), "L'adresse de la liseuse"), "l'adresse de la liseuse", 100,
+                  vide_admis=True)
     if hote and not re.match(r"^[A-Za-z0-9][A-Za-z0-9.-]*$", hote):
         raise Refus("L'adresse de la liseuse est une adresse IP ou un nom, sans espace ni « / ».")
-    try:
-        port = int(liseuse.get("port", 2222))
-        scrutation = int(corps.get("scrutation_secondes", 60))
-    except (TypeError, ValueError):
-        raise Refus("Le port et l'intervalle sont des nombres.")
+    port = _entier(liseuse.get("port", 2222), "Le port")
+    scrutation = _entier(corps.get("scrutation_secondes", 60), "L'intervalle de recherche")
+    _texte_simple(liseuse.get("dossier"), "Le dossier sur la liseuse")
+    _texte_simple(liseuse.get("user"), "L'utilisateur")
+    _texte_simple(corps.get("titre_foyer"), "Le nom du foyer")
     if not 1 <= port <= 65535:
         raise Refus("Port invalide.")
     if not 15 <= scrutation <= 3600:

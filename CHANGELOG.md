@@ -1,5 +1,16 @@
 # Changelog — kit-urgence
 
+## 2.5.0 — 16 novembre 2026
+- **Réglages sauvegardés chez l'Anneau** (module commun `app/maison.py`, contrat 2, copié tel quel) :
+  - le kit n'avait aucun réglage d'usage dans la stack ; ses réglages de l'écran Réglages (nom du foyer, adresse, port et dossier de la liseuse, intervalle de recherche) restent dans `config/config.yaml` ;
+  - nouvelle adresse `GET /externe/sauvegarde` pour l'Anneau, ouverte seulement par le jeton commun `MAISON_JETON` (fermée, 404, s'il est vide ; `API_TOKEN` ne l'ouvre pas). Ne sortent jamais : papiers, clé et utilisateur SSH, mots de passe, contacts ;
+  - nouvelle tuile **Restaurer les réglages** dans Réglages : choisir une date, voir les différences (avant → sauvegardé), confirmer. Anneau injoignable ou rien ce jour-là : un message clair. Une ligne au journal ;
+  - les réglages du kit se changent et se restaurent **même en lecture seule** : ce sont ses réglages à lui ; la lecture seule protège toujours la liseuse et les sources des livres ;
+  - une valeur du mauvais type (texte à la place d'un nombre…) est refusée avec un message (400).
+- **Anciens noms retirés** : le kit ne lit plus `KIT_PASSWORD` (seul `MAISON_PASSWORD`, 12 caractères au moins, sinon le kit ne démarre pas) ni `KIT_CARNET_URL` (le lien vers carnet vient de l'Anneau seulement ; sans lui, pas de lien).
+- Inchangés : `API_TOKEN` obligatoire (Home Assistant), `MAISON_JETON` accepté en plus sur les adresses à jeton (carnet), `KIT_LECTURE_SEULE` (forçage pour le kit seul), `PAPIERS_PASSWORD`.
+- Tests : 56 du back (dont 7 nouveaux pour la sauvegarde et la restauration), 33 d'écran (Restaurer sur PC et iPhone).
+
 ## 2.4.0 — 2026-11-16
 - **Variables communes de la maison** (module `app/maison.py` du socle 0.5.0, copié tel quel) :
   - mot de passe : `MAISON_PASSWORD`, repli sur `KIT_PASSWORD` ;

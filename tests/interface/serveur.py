@@ -21,7 +21,19 @@ def main() -> None:
     conftest.poser_jeu()
     patch = pytest.MonkeyPatch()
     conftest.brancher_liseuse(patch)
-    from app import main as appli
+    import os
+    os.environ["MAISON_JETON"] = "jeton-commun-essai"
+    from app import config, main as appli
+
+    def faux_anneau(adresse: str, jeton: str) -> dict:
+        """Deux sauvegardes inventées ; celle du 15 propose toujours un autre intervalle que l'actuel."""
+        if "?le=" not in adresse:
+            return {"dates": ["2026-11-15", "2026-11-14"]}
+        actuel = config.load().scrutation_secondes
+        return {"le": adresse.split("?le=")[1], "version": "2.5.0",
+                "reglages": {"titre_foyer": config.load().titre_foyer,
+                             "scrutation_secondes": 120 if actuel != 120 else 60}}
+    appli.LIRE_ANNEAU = faux_anneau
     serveur = uvicorn.Server(uvicorn.Config(appli.app, host="127.0.0.1", port=port, log_level="warning"))
     threading.Thread(target=serveur.run, daemon=True).start()
     Path(conftest.BASE / "pret").write_text(str(conftest.BASE))

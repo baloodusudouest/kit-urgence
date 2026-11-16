@@ -5,6 +5,13 @@ Format commun des applis : dépôt `socle`, `docs/format.md`.
 
 ## Où on en est
 
+- **2.5.0** (16/11/2026) : réglages sauvegardés et restaurés ; anciens noms retirés. Module `app/maison.py` au contrat 2 (copie du socle, ne pas le modifier ici).
+  - Réglages d'usage : ceux de l'écran Réglages, gardés dans `config/config.yaml` (aucun n'était dans la stack, donc aucune reprise de variable). `app/sauvegarde.py` les présente à plat (`actuels`, `corps_ecran`) et tient la liste `EXCLUS` (utilisateur SSH, papiers, clé SSH, mots de passe, contacts).
+  - `GET /externe/sauvegarde` (jeton commun seul, 404 si `MAISON_JETON` vide), `GET/POST /api/restaurer` (session ; faux Anneau des tests : `main.LIRE_ANNEAU`). La restauration repasse par `ecrits.enregistrer_reglages` (mêmes contrôles ; une valeur refusée → 422, rien n'est écrit).
+  - Les réglages internes se changent et se restaurent **même en lecture seule** : `garde.reglages_internes()` lève l'interdiction pendant `ecrits.enregistrer_reglages` seulement ; textes, papiers, guides, numéros et liseuse restent refusés deux fois. Mauvais type → 400 (`ecrits._entier`, `_texte_simple`), hors bornes → 422.
+  - Mot de passe : `MAISON_PASSWORD` seul (12 caractères au moins) ; plus de `KIT_PASSWORD`. Lien carnet : annuaire de l'Anneau seul ; plus de `KIT_CARNET_URL`. Restent lues : `MAISON_PASSWORD`, `MAISON_JETON`, `MAISON_JETON_ANCIEN`, `MAISON_LECTURE_SEULE`, `MAISON_ANNEAU_URL` (facultative), `KIT_LECTURE_SEULE`, `PAPIERS_PASSWORD`, `API_TOKEN`, et les chemins `KIT_DATA`, `KIT_STATE`, `KIT_ASSETS`.
+  - **Déploiement en deux temps** : d'abord la nouvelle image avec la stack actuelle (les réglages sont repris des anciennes variables au premier démarrage — pour le kit, il n'y en a aucune : les réglages sont déjà dans `config.yaml`), vérifier Réglages, puis la nouvelle stack sans les anciennes lignes (`KIT_PASSWORD`, `KIT_CARNET_URL`). Avant le premier temps : `MAISON_PASSWORD` doit être dans la stack du kit, sinon il ne démarre plus.
+  - **Jamais essayé sur la vraie installation** (ni la sauvegarde par l'Anneau, ni la restauration).
 - **2.4.0** (16/11/2026) : variables communes (module `app/maison.py`, copie du socle 0.5.0 : ne pas le modifier ici, `python tools/diffuser_maison.py ../kit-urgence` depuis le socle). `config.mot_de_passe` lit `MAISON_PASSWORD` (repli `KIT_PASSWORD`) ; `garde.lecture_seule` / `garde.origine` lisent `MAISON_LECTURE_SEULE` (`KIT_LECTURE_SEULE` l'emporte, « 1 » accepté) ; `main._auth` accepte `API_TOKEN` ou `maison.jetons()` (`jetons_acceptes`), mais refuse (503) tant qu'`API_TOKEN` est vide : **règle gardée**, Home Assistant s'en sert ; `config.ANNUAIRE` + `config.carnet_url(prive)` (tuile « carnet », repli `KIT_CARNET_URL`), `prive` posé par la garde dans `main._PRIVE`. Jamais essayé sur la vraie installation : les nouvelles variables ne sont pas encore dans la stack.
 - **2.3.1** (13/11/2026) : toujours sombre (blocs `prefers-color-scheme: light` retirés, variante `dark:` partout).
 - **2.3.0** (13/11/2026) : connexion commune avec l'Anneau — cookie `maison_session` (accepté ; `Sessions.connecte`, `commun_valide` dans `app/auth.py`). Jamais essayée sur la vraie installation.
@@ -18,15 +25,18 @@ Format commun des applis : dépôt `socle`, `docs/format.md`.
 ## Ce qu'il ne faut pas casser
 
 1. **Home Assistant** lit `/status` sans clé et appelle `/generer`, `/synchroniser`, `/papier/imprime` avec le
-   jeton (`API_TOKEN`, obligatoire ; `MAISON_JETON` accepté en plus depuis la 2.4.0, pour carnet). Les clés de `/status` de la 1.0 restent (test `test_home_assistant_garde_ses_adresses`).
+   jeton (`API_TOKEN`, obligatoire ; `MAISON_JETON` accepté en plus depuis la 2.4.0, pour carnet).
+   `/externe/sauvegarde` (2.5.0) : jeton commun seul, jamais `API_TOKEN`. Les clés de `/status` de la 1.0 restent (test `test_home_assistant_garde_ses_adresses`).
 2. **carnet** dépose `config/contacts-urgence.vcf` dans le dossier du kit puis appelle `/generer` avec le jeton.
 3. **Un livre raté ne remplace jamais le dernier bon** (`app/controle.py`, appelé dans `generate.generer`).
 4. **Le kit ne retire jamais seul un livre** : `disparitions` dans l'état, oui donné par `/api/disparitions`.
 5. **Aucun nom de papier** hors de l'écran : ni dans `/status`, ni dans le journal, ni dans les avertissements.
 6. **Lecture seule refusée deux fois** : à l'adresse, et dans `sync.livrer` (`garde.exiger_ecriture`).
+   Seule exception (2.5.0) : les réglages internes (`config.yaml`), par `garde.reglages_internes()`.
 7. **Les écritures** (`ecrits.py`) : jamais d'écrasement, ancien gardé dans `/data/versions/`, retiré mis de côté
    dans `/data/retires/`, un nom venu de l'écran n'est jamais un chemin.
 8. **Rien de personnel dans le dépôt** (il est public) : exemples inventés, valeurs dans Portainer.
+9. **Rien de secret dans la sauvegarde** : `sauvegarde.EXCLUS` + `maison.est_secret` ; test `test_sauvegarde_rend_les_reglages_sans_secret`.
 
 ## Pièges rencontrés
 

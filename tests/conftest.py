@@ -18,7 +18,7 @@ MDP = "mot-de-passe-essai"
 
 os.environ.update({
     "KIT_DATA": str(BASE / "data"), "KIT_STATE": str(BASE / "state"), "KIT_ASSETS": str(RACINE / "assets"),
-    "PAPIERS_PASSWORD": MDP_PAPIERS, "API_TOKEN": JETON, "KIT_PASSWORD": MDP,
+    "PAPIERS_PASSWORD": MDP_PAPIERS, "API_TOKEN": JETON, "MAISON_PASSWORD": MDP,
     "KIT_SANS_SCRUTATION": "1", "KIT_SANS_ATTENTE": "1",
 })
 

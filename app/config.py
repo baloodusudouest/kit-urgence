@@ -2,7 +2,7 @@
 
 Deux sources :
 - variables d'environnement (secrets et chemins, définies dans la stack / .env) ;
-- /data/config/config.yaml (réglages modifiables sans redéployer).
+- /data/config/config.yaml (réglages d'usage, changés dans l'écran Réglages ; sauvegardés chez l'Anneau, 2.5).
 """
 from __future__ import annotations
 
@@ -43,9 +43,9 @@ class Config:
 
 
 def mot_de_passe() -> str:
-    """Mot de passe commun de l'interface. Sans lui, le kit refuse de démarrer.
-    2.4 : MAISON_PASSWORD, repli sur l'ancien nom KIT_PASSWORD."""
-    return maison.mot_de_passe("KIT_PASSWORD")
+    """Mot de passe commun de l'interface. Sans lui (ou trop court), le kit refuse de démarrer.
+    2.5 : MAISON_PASSWORD seul (l'ancien KIT_PASSWORD n'est plus lu)."""
+    return maison.mot_de_passe()
 
 
 # 2.4 : adresses des autres applis, lues dans l'Anneau (un seul annuaire pour tout le kit)
@@ -54,10 +54,9 @@ ANNUAIRE = maison.Annuaire()
 
 def carnet_url(prive: bool = False) -> str:
     """Adresse de carnet dans le navigateur, pour le lien « Ouvrir dans carnet » (facultative).
-    2.4 : lue dans l'Anneau (tuile « carnet » ; adresse privée quand la page vient de Tailscale),
-    repli sur KIT_CARNET_URL."""
-    repli = os.environ.get("KIT_CARNET_URL", "").strip().rstrip("/")
-    return ANNUAIRE.adresse("carnet", prive=prive, repli=repli).strip().rstrip("/")
+    Lue dans l'Anneau seulement (tuile « carnet » ; adresse privée quand la page vient de Tailscale).
+    2.5 : plus de repli KIT_CARNET_URL ; Anneau muet et rien de connu = pas de lien."""
+    return ANNUAIRE.adresse("carnet", prive=prive, repli="").strip().rstrip("/")
 
 
 def load() -> Config:

@@ -1,11 +1,12 @@
 """Kit d'urgence : générateur, livraison vers la liseuse, et (2.0.0) interface.
 
 Deux portes, deux clés :
-- l'interface et `/api/…` : mot de passe commun (MAISON_PASSWORD, repli KIT_PASSWORD), session par cookie ;
+- l'interface et `/api/…` : mot de passe commun (MAISON_PASSWORD seul depuis la 2.5), session par cookie ;
 - `/generer`, `/synchroniser`, `/papier/imprime`, `/cle-publique` : jeton de Home Assistant (API_TOKEN) ;
-  2.4 : le jeton commun de la maison (MAISON_JETON, MAISON_JETON_ANCIEN) y est accepté en plus, pour carnet.
+  le jeton commun de la maison (MAISON_JETON, MAISON_JETON_ANCIEN) y est accepté en plus, pour carnet.
   API_TOKEN reste obligatoire tant que Home Assistant s'en sert : sans lui ces adresses refusent (503),
   même si MAISON_JETON est posé. Un jeton vide ne vaut jamais « ouvert à tous ».
+- `/externe/sauvegarde` (2.5) : jeton commun seul (MAISON_JETON), pour l'Anneau ; MAISON_JETON vide = 404.
 Sans clé : `/health` et `/status` (lu par les capteurs de Home Assistant ; aucun nom de papier dedans).
 """
 from __future__ import annotations
@@ -21,7 +22,7 @@ from pathlib import Path
 from fastapi import Body, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 
-from . import __version__, config, ecrits, etat, generate, journal, maison, status, sync
+from . import __version__, config, ecrits, etat, generate, journal, maison, sauvegarde, status, sync
 from .auth import COMMUN, DUREE, Sessions
 from .garde import LectureSeule, exiger_ecriture, lecture_seule, origine as origine_lecture_seule
 
@@ -56,8 +57,9 @@ def jetons_acceptes() -> tuple[str, ...]:
 def sessions() -> Sessions:
     if "sessions" not in ETAT:
         mdp = config.mot_de_passe()
-        if not mdp:
-            raise SystemExit("MAISON_PASSWORD (ou KIT_PASSWORD) est absent : le kit d'urgence ne démarre pas sans mot de passe.")
+        if len(mdp) < 12:
+            raise SystemExit("MAISON_PASSWORD est absent ou trop court (12 caractères au moins) : "
+                             "le kit d'urgence ne démarre pas.")
         try:
             generation = int(GENERATION.read_text().strip())
         except (OSError, ValueError):
@@ -323,7 +325,8 @@ def api_connexions():
 @app.get("/api/reglages")
 def api_reglages():
     return {**etat.reglages(config.load()), "version": __version__, "lecture_seule": lecture_seule(),
-            "lecture_seule_origine": origine_lecture_seule(), "journal": journal.lire(60)}
+            "lecture_seule_origine": origine_lecture_seule(), "journal": journal.lire(60),
+            "sauvegarde_possible": bool(maison.jetons())}
 
 
 # ================================================================ gestes de l'écran
@@ -548,9 +551,84 @@ def api_effacer(corps: dict = Body(...)):
 
 
 @app.put("/api/reglages")
-def api_enregistrer_reglages(corps: dict = Body(...)):
-    _ecrire("Réglages modifiés", ecrits.enregistrer_reglages, corps)
+def api_enregistrer_reglages(corps=Body(...)):
+    """Réglages internes du kit : permis même en lecture seule (2.5). Mauvais type → 400, hors bornes → 422."""
+    with _TRAVAIL:
+        ecrits.enregistrer_reglages(corps)
+    journal.noter("Réglages modifiés")
     return api_reglages()
+
+
+# ================================================================ sauvegarde chez l'Anneau (2.5, contrat 1)
+
+@app.get("/externe/sauvegarde")
+def externe_sauvegarde(request: Request):
+    """Lue chaque nuit par l'Anneau, avec le jeton commun (API_TOKEN n'ouvre pas cette porte).
+    Réglages d'usage et version seulement : ni papier, ni clé SSH, ni mot de passe, ni variable."""
+    acceptes = maison.jetons()
+    if not acceptes:
+        raise HTTPException(404, "Not Found")                 # MAISON_JETON vide : porte fermée
+    if not maison.jeton_valide(maison.jeton_propose(request.headers), acceptes):
+        raise HTTPException(401, "Jeton commun manquant ou invalide.")
+    return maison.sauvegarde(sauvegarde.APPLI, __version__, sauvegarde.actuels(config.load()),
+                             exclus=sauvegarde.EXCLUS)
+
+
+# Pour les tests : un faux Anneau (fonction (adresse, jeton) → dict) remplace la demande HTTP
+LIRE_ANNEAU = None
+
+
+def _demander_anneau(le: str = "") -> dict:
+    """Demande à l'Anneau ; ses pannes deviennent des messages clairs (404 rien à restaurer, 503 injoignable)."""
+    if le and not sauvegarde.JOUR.match(le):
+        raise HTTPException(400, "Date attendue sous la forme AAAA-MM-JJ.")
+    if not maison.jeton_a_envoyer():
+        raise HTTPException(503, "Jeton commun absent (MAISON_JETON) : l'Anneau ne peut pas être interrogé.")
+    try:
+        reponse = maison.lire_sauvegarde(sauvegarde.APPLI, le, lire=LIRE_ANNEAU)
+    except Exception as exc:                                  # noqa: BLE001 — urllib, réseau, JSON…
+        if getattr(exc, "code", None) == 404:
+            raise HTTPException(404, "L'Anneau n'a aucune sauvegarde du kit"
+                                     f"{' le ' + le if le else ''}.") from exc
+        raise HTTPException(503, "L'Anneau ne répond pas : restauration impossible pour l'instant "
+                                 f"({exc.__class__.__name__}).") from exc
+    if not isinstance(reponse, dict):
+        raise HTTPException(503, "Réponse de l'Anneau illisible.")
+    if le and not isinstance(reponse.get("reglages"), dict):
+        raise HTTPException(404, f"L'Anneau n'a aucune sauvegarde du kit le {le}.")
+    return reponse
+
+
+@app.get("/api/restaurer")
+def api_restaurer_voir(le: str = ""):
+    if not le:
+        dates = _demander_anneau().get("dates") or []
+        return {"dates": [d for d in dates if isinstance(d, str)]}
+    sauve = _demander_anneau(le)
+    return {"le": le, "version": sauve.get("version", ""),
+            "differences": maison.differences(sauvegarde.actuels(config.load()), sauve["reglages"],
+                                              sauvegarde.EXCLUS)}
+
+
+@app.post("/api/restaurer")
+def api_restaurer(corps: dict = Body(...)):
+    """Applique les réglages d'une sauvegarde qui diffèrent d'aujourd'hui. Réglages internes seulement :
+    permis même en lecture seule. Les valeurs passent par les mêmes contrôles que l'écran."""
+    le = str(corps.get("le", ""))
+    if not le:
+        raise HTTPException(400, "Choisis la date de la sauvegarde à restaurer.")
+    sauve = _demander_anneau(le)
+    actuels = sauvegarde.actuels(config.load())
+    diffs = maison.differences(actuels, sauve["reglages"], sauvegarde.EXCLUS)
+    if diffs:
+        nouveaux = {**actuels, **{d["cle"]: d["sauve"] for d in diffs}}
+        try:
+            with _TRAVAIL:
+                ecrits.enregistrer_reglages(sauvegarde.corps_ecran(nouveaux))
+        except ecrits.Refus as exc:
+            raise HTTPException(422, f"Sauvegarde du {le} non appliquée : {exc}") from exc
+    journal.noter(f"Réglages restaurés depuis la sauvegarde du {le} ({len(diffs)} changé(s))")
+    return {"le": le, "appliques": [d["cle"] for d in diffs], **api_reglages()}
 
 
 # ================================================================ interface

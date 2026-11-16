@@ -32,7 +32,7 @@ def ecran(client):
 
 def test_sans_mot_de_passe_le_kit_ne_demarre_pas(jeu, monkeypatch):
     main.ETAT.clear()
-    monkeypatch.setenv("KIT_PASSWORD", "")
+    monkeypatch.setenv("MAISON_PASSWORD", "")
     with pytest.raises(SystemExit):
         main.sessions()
     main.ETAT.clear()
@@ -230,7 +230,9 @@ def test_l_ecran_des_livres(ecran):
 
 
 def test_lien_vers_carnet(ecran, monkeypatch):
-    monkeypatch.setenv("KIT_CARNET_URL", "http://nas.exemple:8096/")
+    from app import maison
+    services = [{"nom": "carnet", "locale": "http://nas.exemple:8096/"}]
+    monkeypatch.setattr(config, "ANNUAIRE", maison.Annuaire(url="http://anneau.exemple", jeton="j", lire=lambda: services))
     c = ecran.get("/api/livres").json()["contacts"][0]
     assert c["carnet"] == "http://nas.exemple:8096/#/contacts/uid-voisine"
 

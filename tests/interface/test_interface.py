@@ -255,6 +255,25 @@ def test_reglages_refuse_un_dossier_dangereux(page):
     assert page.get_by_label(re.compile("Dossier des livres")).input_value() == bon
 
 
+def test_restaurer_les_reglages(page):
+    """2.5 : choisir une sauvegarde de l'Anneau (faux Anneau du serveur de démonstration), voir, confirmer."""
+    aller(page, "Réglages")
+    zone = page.get_by_role("region", name="Restaurer les réglages")
+    zone.get_by_role("button", name="Voir les sauvegardes").click()
+    assert page.locator("#date-sauvegarde").input_value() == "2026-11-15"
+    zone.get_by_role("button", name="Voir les différences").click()
+    differences = zone.get_by_role("list", name="Différences")
+    differences.wait_for()
+    assert "Recherche de la liseuse" in differences.inner_text() and "→" in differences.inner_text()
+    largeur = page.evaluate("[document.documentElement.scrollWidth, window.innerWidth]")
+    assert largeur[0] <= largeur[1], largeur
+    avant = page.get_by_label(re.compile("Recherche de la liseuse")).input_value()
+    zone.get_by_role("button", name="Restaurer ces réglages").click()
+    page.locator("#message-restaurer", has_text="restaurés").wait_for()
+    assert page.get_by_label(re.compile("Recherche de la liseuse")).input_value() != avant
+    assert "restaurés" in page.get_by_role("region", name="Journal").inner_text()
+
+
 def test_verifier_puis_livrer_depuis_connexion(page):
     """Dernier test du module : il change l'état (le kit est livré)."""
     aller(page, "Connexion")
