@@ -21,7 +21,7 @@
   ]
 
   let connecte = $state(null) // null : on ne sait pas encore
-  let session = $state({ version: '', lecture_seule: false })
+  let session = $state({ version: '', lecture_seule: false, lecture_seule_origine: '' })
   let page = $state(lirePage())
   let cible = $state(lireCible())   // ce qui suit la page dans l'adresse : « #/kit/02 » ouvre le livre 02
   let attente = $state(0) // nombre de choses à traiter, montré sur l'onglet
@@ -91,7 +91,7 @@
     >
       {#if session.lecture_seule}
         <p class="mb-4 rounded-xl border border-primary/50 px-4 py-2 text-sm" role="status">
-          Mode lecture seule : le kit fabrique ses livres mais n'écrit ni sur la liseuse ni dans ses sources.
+          Mode lecture seule{session.lecture_seule_origine === 'maison' ? ' pour toute la maison' : ''} : le kit fabrique ses livres mais n'écrit ni sur la liseuse ni dans ses sources.
         </p>
       {/if}
       {#key page + '/' + cible.join('/')}

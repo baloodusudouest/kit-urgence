@@ -1,5 +1,15 @@
 # Changelog — kit-urgence
 
+## 2.4.0 — 2026-11-16
+- **Variables communes de la maison** (module `app/maison.py` du socle 0.5.0, copié tel quel) :
+  - mot de passe : `MAISON_PASSWORD`, repli sur `KIT_PASSWORD` ;
+  - lecture seule : `MAISON_LECTURE_SEULE` pour toute la maison ; `KIT_LECTURE_SEULE`, si elle dit oui (« 1 » reste accepté) ou non, l'emporte pour le kit. Réglages et le bandeau disent « toute la maison » ou « cette appli » ;
+  - jeton commun `MAISON_JETON` (et `MAISON_JETON_ANCIEN` pendant un changement) accepté sur `/generer`, `/synchroniser`, `/papier/imprime` et `/cle-publique`, en plus d'`API_TOKEN` : carnet pourra passer au jeton commun. `API_TOKEN` reste obligatoire tant que Home Assistant s'en sert : sans lui, ces adresses refusent, même avec `MAISON_JETON` ;
+  - lien « Ouvrir dans carnet » : adresse lue dans l'Anneau (tuile « carnet » ; adresse privée quand le kit est ouvert par Tailscale), repli sur `KIT_CARNET_URL`.
+- Mot de passe des papiers (`PAPIERS_PASSWORD`) inchangé.
+- Rien ne change tant que la stack n'a pas les nouvelles variables : chaque ancien nom reste lu.
+- Tests : 50 du back (dont 8 pour les variables communes), 31 d'écran.
+
 ## 2.3.1 — 2026-11-13
 - **Toujours sombre.** Le thème clair est retiré : l'appli est sombre partout, ouverte seule comme dans l'Anneau, quel que soit le réglage du téléphone.
 

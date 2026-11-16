@@ -5,6 +5,7 @@ Format commun des applis : dépôt `socle`, `docs/format.md`.
 
 ## Où on en est
 
+- **2.4.0** (16/11/2026) : variables communes (module `app/maison.py`, copie du socle 0.5.0 : ne pas le modifier ici, `python tools/diffuser_maison.py ../kit-urgence` depuis le socle). `config.mot_de_passe` lit `MAISON_PASSWORD` (repli `KIT_PASSWORD`) ; `garde.lecture_seule` / `garde.origine` lisent `MAISON_LECTURE_SEULE` (`KIT_LECTURE_SEULE` l'emporte, « 1 » accepté) ; `main._auth` accepte `API_TOKEN` ou `maison.jetons()` (`jetons_acceptes`), mais refuse (503) tant qu'`API_TOKEN` est vide : **règle gardée**, Home Assistant s'en sert ; `config.ANNUAIRE` + `config.carnet_url(prive)` (tuile « carnet », repli `KIT_CARNET_URL`), `prive` posé par la garde dans `main._PRIVE`. Jamais essayé sur la vraie installation : les nouvelles variables ne sont pas encore dans la stack.
 - **2.3.1** (13/11/2026) : toujours sombre (blocs `prefers-color-scheme: light` retirés, variante `dark:` partout).
 - **2.3.0** (13/11/2026) : connexion commune avec l'Anneau — cookie `maison_session` (accepté ; `Sessions.connecte`, `commun_valide` dans `app/auth.py`). Jamais essayée sur la vraie installation.
 - **2.0.0** (11/11/2026) : interface en lecture, sécurité, contrôles. Publiée, **pas encore vue sur le NAS**.
@@ -17,7 +18,7 @@ Format commun des applis : dépôt `socle`, `docs/format.md`.
 ## Ce qu'il ne faut pas casser
 
 1. **Home Assistant** lit `/status` sans clé et appelle `/generer`, `/synchroniser`, `/papier/imprime` avec le
-   jeton. Les clés de `/status` de la 1.0 restent (test `test_home_assistant_garde_ses_adresses`).
+   jeton (`API_TOKEN`, obligatoire ; `MAISON_JETON` accepté en plus depuis la 2.4.0, pour carnet). Les clés de `/status` de la 1.0 restent (test `test_home_assistant_garde_ses_adresses`).
 2. **carnet** dépose `config/contacts-urgence.vcf` dans le dossier du kit puis appelle `/generer` avec le jeton.
 3. **Un livre raté ne remplace jamais le dernier bon** (`app/controle.py`, appelé dans `generate.generer`).
 4. **Le kit ne retire jamais seul un livre** : `disparitions` dans l'état, oui donné par `/api/disparitions`.

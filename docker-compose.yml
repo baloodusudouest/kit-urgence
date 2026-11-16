@@ -9,11 +9,16 @@ services:
       - "8095:8095"                       # interface, et API lue par Home Assistant
     environment:
       - TZ=Europe/Paris
-      - KIT_PASSWORD=${CARNET_PASSWORD}            # mot de passe commun des applis : obligatoire
+      # 2.4 : variables communes de la maison (module app/maison.py) ; les anciennes restent lues en repli
+      - MAISON_PASSWORD=${MAISON_PASSWORD}         # mot de passe commun des applis : obligatoire (repli : KIT_PASSWORD)
+      # - KIT_PASSWORD=${CARNET_PASSWORD}          # ancien nom, lu en repli tant que MAISON_PASSWORD manque
+      - MAISON_JETON=${MAISON_JETON:-}             # jeton commun : accepté en plus d'API_TOKEN (pour carnet)
+      - MAISON_LECTURE_SEULE=${MAISON_LECTURE_SEULE:-}   # « oui » : aucune appli n'écrit ; KIT_LECTURE_SEULE l'emporte si posée
       - PAPIERS_PASSWORD=${KIT_PAPIERS_PASSWORD}   # mot de passe du livre des papiers (secret)
-      - API_TOKEN=${KIT_API_TOKEN}                 # jeton de Home Assistant et de carnet : obligatoire
-      - KIT_CARNET_URL=${KIT_CARNET_URL:-}         # adresse de carnet dans le navigateur (lien « Ouvrir dans carnet »)
-      - KIT_LECTURE_SEULE=${KIT_LECTURE_SEULE:-}   # 1 : n'écrit ni sur la liseuse ni dans les sources
+      - API_TOKEN=${KIT_API_TOKEN}                 # jeton de Home Assistant : obligatoire tant qu'HA s'en sert
+                                                   # (sans lui, adresses à jeton fermées même avec MAISON_JETON)
+      - KIT_CARNET_URL=${KIT_CARNET_URL:-}         # repli du lien « Ouvrir dans carnet » (adresse lue dans l'Anneau, tuile « carnet »)
+      - KIT_LECTURE_SEULE=${KIT_LECTURE_SEULE:-}   # « 1 »/« oui » ou « non » : force le kit seul (l'emporte sur la maison)
       - LOG_LEVEL=INFO
     volumes:
       # Sources et kit généré : éditables depuis le réseau local

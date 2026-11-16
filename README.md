@@ -38,6 +38,7 @@ Le workflow `.github/workflows/docker.yml` lance les tests puis publie `ghcr.io/
 ### 3. Service Docker
 Ajouter le service de `docker-compose.yml` à la stack et renseigner les variables de `.env.example` :
 `KIT_VERSION`, `KIT_DATA_DIR`, `KIT_STATE_DIR`, `KIT_PAPIERS_PASSWORD`, `KIT_API_TOKEN` et le mot de passe commun `CARNET_PASSWORD` (obligatoires), `KIT_CARNET_URL` et `KIT_LECTURE_SEULE` (facultatifs).
+Depuis la 2.4.0, variables communes de la maison : `MAISON_PASSWORD` (mot de passe commun ; repli `KIT_PASSWORD`), `MAISON_JETON` (jeton commun, accepté en plus de `API_TOKEN` sur les adresses à jeton, pour carnet), `MAISON_LECTURE_SEULE` (toute la maison ; `KIT_LECTURE_SEULE`, si elle dit oui ou non, l'emporte). `API_TOKEN` reste obligatoire tant que Home Assistant s'en sert. Le lien « Ouvrir dans carnet » prend l'adresse de la tuile « carnet » de l'Anneau, repli `KIT_CARNET_URL`.
 
 ### 4. Autoriser le conteneur sur le Kindle
 Ouvrir l'interface (`http://<IP_DU_NAS>:8095`), écran **Connexion › Liseuse**, copier la clé, puis l'ajouter dans `koreader/settings/SSH/authorized_keys` (Kindle branché en USB, KOReader fermé).

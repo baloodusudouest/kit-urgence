@@ -114,9 +114,9 @@ def guides() -> list[dict]:
     return sortie
 
 
-def liste_contacts(cfg: Config) -> dict:
+def liste_contacts(cfg: Config, prive: bool = False) -> dict:
     chemin = DATA / "config" / cfg.contacts_vcf
-    base = config.carnet_url()
+    base = config.carnet_url(prive)
     lignes = [{"nom": c["nom"], "organisation": c["organisation"], "tels": c["tels"],
                "carnet": f"{base}/#/contacts/{c['uid']}" if base and c.get("uid") else None}
               for c in contacts.lire_vcf(chemin)]
@@ -279,7 +279,7 @@ def nombre_a_traiter(cfg: Config) -> int:
 
 # ------------------------------------------------------------------ connexion
 
-def connexions(cfg: Config, cle_publique: str) -> dict:
+def connexions(cfg: Config, cle_publique: str, prive: bool = False) -> dict:
     etat = status.read()
     vcf = DATA / "config" / cfg.contacts_vcf
     return {
@@ -293,7 +293,7 @@ def connexions(cfg: Config, cle_publique: str) -> dict:
         },
         "carnet": {
             "present": vcf.exists(), "recus_le": _iso_fichier(vcf),
-            "nombre": len(contacts.lire_vcf(vcf)), "url": config.carnet_url() or None,
+            "nombre": len(contacts.lire_vcf(vcf)), "url": config.carnet_url(prive) or None,
         },
         "home_assistant": {
             "jeton_regle": bool(os.environ.get("API_TOKEN", "")),

@@ -12,6 +12,8 @@ from pathlib import Path
 
 import yaml
 
+from . import maison
+
 DATA = Path(os.environ.get("KIT_DATA", "/data"))
 STATE = Path(os.environ.get("KIT_STATE", "/state"))
 ASSETS = Path(os.environ.get("KIT_ASSETS", "/app/assets"))
@@ -41,13 +43,21 @@ class Config:
 
 
 def mot_de_passe() -> str:
-    """Mot de passe commun de l'interface (KIT_PASSWORD). Sans lui, le kit refuse de démarrer."""
-    return os.environ.get("KIT_PASSWORD", "")
+    """Mot de passe commun de l'interface. Sans lui, le kit refuse de démarrer.
+    2.4 : MAISON_PASSWORD, repli sur l'ancien nom KIT_PASSWORD."""
+    return maison.mot_de_passe("KIT_PASSWORD")
 
 
-def carnet_url() -> str:
-    """Adresse de carnet dans le navigateur, pour le lien « Ouvrir dans carnet » (facultative)."""
-    return os.environ.get("KIT_CARNET_URL", "").strip().rstrip("/")
+# 2.4 : adresses des autres applis, lues dans l'Anneau (un seul annuaire pour tout le kit)
+ANNUAIRE = maison.Annuaire()
+
+
+def carnet_url(prive: bool = False) -> str:
+    """Adresse de carnet dans le navigateur, pour le lien « Ouvrir dans carnet » (facultative).
+    2.4 : lue dans l'Anneau (tuile « carnet » ; adresse privée quand la page vient de Tailscale),
+    repli sur KIT_CARNET_URL."""
+    repli = os.environ.get("KIT_CARNET_URL", "").strip().rstrip("/")
+    return ANNUAIRE.adresse("carnet", prive=prive, repli=repli).strip().rstrip("/")
 
 
 def load() -> Config:

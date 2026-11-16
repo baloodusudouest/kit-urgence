@@ -1,26 +1,29 @@
 """Kit d'urgence : générateur, livraison vers la liseuse, et (2.0.0) interface.
 
 Deux portes, deux clés :
-- l'interface et `/api/…` : mot de passe commun (KIT_PASSWORD), session par cookie ;
-- `/generer`, `/synchroniser`, `/papier/imprime` : jeton de Home Assistant et de carnet (API_TOKEN).
-  Un jeton vide ne vaut plus « ouvert à tous » : ces adresses refusent tant qu'il n'est pas réglé.
+- l'interface et `/api/…` : mot de passe commun (MAISON_PASSWORD, repli KIT_PASSWORD), session par cookie ;
+- `/generer`, `/synchroniser`, `/papier/imprime`, `/cle-publique` : jeton de Home Assistant (API_TOKEN) ;
+  2.4 : le jeton commun de la maison (MAISON_JETON, MAISON_JETON_ANCIEN) y est accepté en plus, pour carnet.
+  API_TOKEN reste obligatoire tant que Home Assistant s'en sert : sans lui ces adresses refusent (503),
+  même si MAISON_JETON est posé. Un jeton vide ne vaut jamais « ouvert à tous ».
 Sans clé : `/health` et `/status` (lu par les capteurs de Home Assistant ; aucun nom de papier dedans).
 """
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import logging
 import os
 import threading
 import time
 from pathlib import Path
 
-from fastapi import Body, Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Body, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 
-from . import __version__, config, ecrits, etat, generate, journal, status, sync
+from . import __version__, config, ecrits, etat, generate, journal, maison, status, sync
 from .auth import COMMUN, DUREE, Sessions
-from .garde import LectureSeule, exiger_ecriture, lecture_seule
+from .garde import LectureSeule, exiger_ecriture, lecture_seule, origine as origine_lecture_seule
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"),
                     format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -32,19 +35,29 @@ _TRAVAIL = threading.Lock()  # une seule génération / livraison à la fois
 STATIQUE = Path(__file__).parent / "static"
 GENERATION = config.STATE / "session_generation"
 ETAT: dict = {}
+# 2.4 : la page a-t-elle été ouverte par le réseau privé (Tailscale) ? Posé à chaque requête par la garde,
+# lu pour choisir l'adresse de carnet donnée au navigateur.
+_PRIVE: contextvars.ContextVar[bool] = contextvars.ContextVar("prive", default=False)
 
 app = FastAPI(title="kit-urgence", version=__version__, docs_url=None, redoc_url=None)
 
 
 def jeton() -> str:
+    """Jeton de Home Assistant (API_TOKEN). Obligatoire : sans lui, les adresses à jeton restent fermées."""
     return os.environ.get("API_TOKEN", "")
+
+
+def jetons_acceptes() -> tuple[str, ...]:
+    """2.4 : API_TOKEN (Home Assistant, et carnet tant qu'il l'envoie), puis le jeton commun de la maison
+    (MAISON_JETON, MAISON_JETON_ANCIEN) pour carnet."""
+    return tuple(j for j in (jeton(), *maison.jetons()) if j)
 
 
 def sessions() -> Sessions:
     if "sessions" not in ETAT:
         mdp = config.mot_de_passe()
         if not mdp:
-            raise SystemExit("KIT_PASSWORD est absent : le kit d'urgence ne démarre pas sans mot de passe.")
+            raise SystemExit("MAISON_PASSWORD (ou KIT_PASSWORD) est absent : le kit d'urgence ne démarre pas sans mot de passe.")
         try:
             generation = int(GENERATION.read_text().strip())
         except (OSError, ValueError):
@@ -58,6 +71,7 @@ def sessions() -> Sessions:
 @app.middleware("http")
 async def garde(request: Request, appel):
     chemin = request.url.path
+    _PRIVE.set(maison.est_prive(request.headers.get("host", "")))
     if chemin.startswith("/api/"):
         libre = chemin == "/api/session" or (chemin == "/api/connexion" and request.method == "POST")
         s = sessions()
@@ -79,12 +93,13 @@ async def _lecture_seule(_: Request, exc: LectureSeule):
     return JSONResponse({"detail": str(exc)}, status_code=409)
 
 
-def _auth(authorization: str = Header(default="")) -> None:
-    """Jeton de Home Assistant et de carnet. Vide = refusé (avant la 2.0.0 : ouvert à tous)."""
-    attendu = jeton()
-    if not attendu:
+def _auth(request: Request) -> None:
+    """Jeton de Home Assistant et de carnet. Vide = refusé (avant la 2.0.0 : ouvert à tous).
+    2.4 : API_TOKEN ou MAISON_JETON (comparaison en temps constant) ; API_TOKEN reste obligatoire
+    tant que Home Assistant s'en sert : sans lui, refus même avec MAISON_JETON."""
+    if not jeton():
         raise HTTPException(503, "Jeton non réglé : définis KIT_API_TOKEN dans la stack.")
-    if authorization != f"Bearer {attendu}":
+    if not maison.jeton_valide(maison.jeton_propose(request.headers), jetons_acceptes()):
         raise HTTPException(401, "Jeton invalide")
     status.update(dernier_appel_jeton=status.now())
 
@@ -148,7 +163,8 @@ def _scrutation() -> None:
 def _demarrage() -> None:
     sessions()                                   # refuse de démarrer sans mot de passe
     if not jeton():
-        log.warning("API_TOKEN est vide : Home Assistant et carnet ne pourront rien lancer.")
+        log.warning("API_TOKEN est vide : Home Assistant et carnet ne pourront rien lancer "
+                    "(MAISON_JETON seul ne suffit pas, API_TOKEN reste obligatoire).")
     cle = sync.assurer_cle()
     log.info("Clé publique à autoriser sur la liseuse :\n%s", cle)
     cfg = config.load()
@@ -222,7 +238,7 @@ def _papier_imprime() -> dict:
 def session(request: Request):
     s = sessions()
     return {"connecte": s.connecte(request.cookies), "version": __version__,
-            "lecture_seule": lecture_seule()}
+            "lecture_seule": lecture_seule(), "lecture_seule_origine": origine_lecture_seule()}
 
 
 @app.post("/api/connexion")
@@ -264,7 +280,7 @@ def api_livres():
     cfg = config.load()
     return {"livres": etat.livres(cfg), "textes": etat.textes(), "guides": etat.guides(),
             "papiers": etat.liste_papiers(), "pieces": ecrits.pieces(), "retires": ecrits.papiers_retires(), "numeros": etat.numeros(),
-            **etat.liste_contacts(cfg)}
+            **etat.liste_contacts(cfg, prive=_PRIVE.get())}
 
 
 @app.get("/api/textes/{nom}")
@@ -301,13 +317,13 @@ def api_connexions():
     joignable = sync.port_ouvert(cfg)            # l'écran Connexion regarde pour de bon, sans attendre la scrutation
     if joignable != status.read().get("kindle_joignable"):
         status.update(kindle_joignable=joignable, **({"kindle_vu_le": status.now()} if joignable else {}))
-    return etat.connexions(cfg, sync.assurer_cle())
+    return etat.connexions(cfg, sync.assurer_cle(), prive=_PRIVE.get())
 
 
 @app.get("/api/reglages")
 def api_reglages():
     return {**etat.reglages(config.load()), "version": __version__, "lecture_seule": lecture_seule(),
-            "journal": journal.lire(60)}
+            "lecture_seule_origine": origine_lecture_seule(), "journal": journal.lire(60)}
 
 
 # ================================================================ gestes de l'écran

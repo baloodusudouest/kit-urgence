@@ -58,8 +58,10 @@
     <h2 class="text-lg font-semibold">Écriture</h2>
     <p class="mt-1 text-sm text-muted-foreground">
       {d.lecture_seule
-        ? 'Lecture seule : le kit fabrique ses livres mais n\'écrit ni sur la liseuse ni dans ses sources. À retirer dans la stack (KIT_LECTURE_SEULE) quand tout va bien.'
-        : 'Le kit écrit normalement. Pour le premier jour d\'une nouvelle version : KIT_LECTURE_SEULE=1 dans la stack.'}
+        ? (d.lecture_seule_origine === 'maison'
+          ? 'Lecture seule pour toute la maison : le kit fabrique ses livres mais n\'écrit ni sur la liseuse ni dans ses sources. À retirer dans la stack (MAISON_LECTURE_SEULE) quand tout va bien, ou KIT_LECTURE_SEULE=non pour que le kit seul écrive.'
+          : 'Lecture seule pour cette appli : le kit fabrique ses livres mais n\'écrit ni sur la liseuse ni dans ses sources. À retirer dans la stack (KIT_LECTURE_SEULE) quand tout va bien.')
+        : 'Le kit écrit normalement. Pour le premier jour d\'une nouvelle version : KIT_LECTURE_SEULE=1 (le kit seul) ou MAISON_LECTURE_SEULE=oui (toute la maison) dans la stack.'}
     </p>
   </section>
 

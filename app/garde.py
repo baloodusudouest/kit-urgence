@@ -1,12 +1,15 @@
-"""Mode lecture seule (KIT_LECTURE_SEULE) : le kit lit tout, fabrique ses livres chez lui,
+"""Mode lecture seule : le kit lit tout, fabrique ses livres chez lui,
 mais n'écrit ni sur la liseuse ni dans ses sources.
+
+2.4 : MAISON_LECTURE_SEULE=oui met toute la maison en lecture seule ; KIT_LECTURE_SEULE, si elle dit oui
+(« 1 » accepté comme avant) ou non, l'emporte pour le kit seul (module commun `maison`).
 
 Le refus se fait deux fois : à l'adresse appelée, puis dans la fonction qui écrit."""
 from __future__ import annotations
 
-import os
+from . import maison
 
-VRAI = ("oui", "1", "true", "yes")
+PROPRE = "KIT_LECTURE_SEULE"
 
 
 class LectureSeule(Exception):
@@ -14,7 +17,12 @@ class LectureSeule(Exception):
 
 
 def lecture_seule() -> bool:
-    return os.environ.get("KIT_LECTURE_SEULE", "").strip().lower() in VRAI
+    return maison.lecture_seule(PROPRE)
+
+
+def origine() -> str:
+    """« maison » (toute la maison), « appli » (le kit seul) ou « » (écriture permise)."""
+    return maison.origine_lecture_seule(PROPRE)
 
 
 def exiger_ecriture(quoi: str = "") -> None:
