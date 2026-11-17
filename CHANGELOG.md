@@ -1,5 +1,10 @@
 # Changelog — kit-urgence
 
+## 2.5.2 — 2026-11-17 (corrections de l'audit)
+- **Livre tronqué** : si la liaison avec la liseuse tombait pendant l'envoi, le fichier partiel remplaçait le dernier bon livre. Il ne prend maintenant la place de l'ancien que s'il est arrivé entier (taille contrôlée sur la liseuse) ; sinon il est effacé et l'ancien reste.
+- **Dossier trop large refusé** : `/mnt/us` ou `/mnt/us/documents` étaient acceptés comme dossier de la liseuse, et la livraison y aurait effacé tous les livres qui ne sont pas au kit. Il faut un dossier à lui (ex. `/mnt/us/documents/Urgence`) ; la livraison le revérifie avant tout effacement.
+- **Liseuse endormie** : délais maximaux sur la connexion SSH et sur chaque échange (120 s sans octet) ; avant, une liseuse qui s'endormait en plein envoi figeait toute l'appli.
+
 ## 2.5.1 — 2026-11-16
 
 - **Lecture seule stricte pour les réglages** (choix de Julien) : en lecture seule, les réglages du kit (foyer, liseuse, recherche) ne se changent plus ni ne se restaurent depuis l'Anneau, comme avant la 2.5 ; champs et boutons grisés dans Réglages. Les autres changements de la 2.5.0 restent.

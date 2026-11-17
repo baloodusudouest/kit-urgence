@@ -576,7 +576,8 @@ def _enregistrer_reglages(corps: dict, liseuse: dict) -> None:
     if not 15 <= scrutation <= 3600:
         raise Refus("L'intervalle de recherche va de 15 à 3600 secondes.")
     dossier = _champ(liseuse.get("dossier"), "le dossier sur la liseuse", 200)
-    if not re.match(r"^/[A-Za-z0-9._/ -]+$", dossier) or ".." in dossier or dossier.rstrip("/").count("/") < 2:
+    from .sync import dossier_dedie
+    if not re.match(r"^/[A-Za-z0-9._/ -]+$", dossier) or ".." in dossier or not dossier_dedie(dossier):
         raise Refus("Le dossier sur la liseuse est un chemin complet d'au moins deux niveaux, par exemple "
                     "/mnt/us/documents/Urgence : la livraison y efface les livres qui ne sont plus dans le kit.")
     utilisateur = _champ(liseuse.get("user") or "root", "l'utilisateur", 40)

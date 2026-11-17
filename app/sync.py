@@ -68,6 +68,18 @@ class _PremiereConnexion(paramiko.MissingHostKeyPolicy):
                     key.get_fingerprint().hex())
 
 
+DELAI_CANAL = 120   # secondes sans aucun octet échangé avant d'abandonner
+
+# 2.5.2 (audit du 17/11/2026) : dossiers de la liseuse trop larges pour y effacer les livres qui ne sont plus au kit
+DOSSIERS_INTERDITS = {"/", "/mnt", "/mnt/us", "/mnt/us/documents", "/mnt/base-us", "/mnt/base-us/documents",
+                      "/mnt/onboard", "/mnt/sd", "/sdcard", "/storage/emulated/0"}
+
+
+def dossier_dedie(dossier: str) -> bool:
+    d = dossier.rstrip("/") or "/"
+    return d.lower() not in DOSSIERS_INTERDITS and d.count("/") >= 3
+
+
 def _connexion(cfg: Config) -> paramiko.SSHClient:
     client = paramiko.SSHClient()
     if KNOWN_HOSTS.exists():
@@ -77,6 +89,7 @@ def _connexion(cfg: Config) -> paramiko.SSHClient:
     client.connect(
         cfg.kindle.host, port=cfg.kindle.port, username=cfg.kindle.user,
         key_filename=str(CLE), look_for_keys=False, allow_agent=False, timeout=10,
+        banner_timeout=15, auth_timeout=15,      # 2.5.2 : une liseuse qui s'endort ne bloque plus la connexion
     )
     log.debug("Connecté à %s", hote)
     return client
@@ -85,6 +98,7 @@ def _connexion(cfg: Config) -> paramiko.SSHClient:
 def _exec(client: paramiko.SSHClient, cmd: str, donnees: Path | None = None) -> tuple[int, str]:
     transport = client.get_transport()
     chan = transport.open_session()
+    chan.settimeout(DELAI_CANAL)         # 2.5.2 : sans délai, une liseuse endormie figeait toute l'appli
     chan.exec_command(cmd)
     if donnees is not None:
         with donnees.open("rb") as f:
@@ -143,6 +157,9 @@ def livrer(cfg: Config) -> dict:
     exiger_ecriture("sur la liseuse")
     manifest_local = json.loads((SORTIE / "manifest.json").read_text(encoding="utf-8"))
     dest = cfg.kindle.dossier.rstrip("/")
+    if not dossier_dedie(dest):
+        raise RuntimeError(f"Le dossier {dest} est trop large : la livraison y effacerait des livres qui ne sont pas au "
+                           "kit. Choisir un dossier à lui (ex. /mnt/us/documents/Urgence) dans Réglages.")
     client = _connexion(cfg)
     try:
         code, _ = _exec(client, f"mkdir -p {shlex.quote(dest)}")
@@ -171,9 +188,14 @@ def livrer(cfg: Config) -> dict:
                 continue
             tmp = f"{dest}/.{nom}.tmp"
             cible = f"{dest}/{nom}"
+            # 2.5.2 : le fichier ne remplace l'ancien que s'il est arrivé entier (un envoi coupé laissait un
+            # livre tronqué à la place du bon)
+            taille = (SORTIE / nom).stat().st_size
+            q = shlex.quote
             code, out = _exec(
                 client,
-                f"cat > {shlex.quote(tmp)} && mv -f {shlex.quote(tmp)} {shlex.quote(cible)}",
+                f'cat > {q(tmp)} && [ "$(wc -c < {q(tmp)} | tr -d " ")" = "{taille}" ] '
+                f'&& mv -f {q(tmp)} {q(cible)} || {{ rm -f {q(tmp)}; echo "envoi incomplet"; exit 1; }}',
                 SORTIE / nom,
             )
             if code != 0:

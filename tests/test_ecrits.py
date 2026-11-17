@@ -286,7 +286,8 @@ def test_reglages(ecran, jeu):
     cfg = config.load()
     assert cfg.kindle.dossier == "/mnt/us/documents/Urgence" and cfg.scrutation_secondes == 120
     assert cfg.contacts_vcf == "contacts-urgence.vcf"
-    for mauvais in ({"liseuse": {**bon["liseuse"], "dossier": "/"}}, {"liseuse": {**bon["liseuse"], "dossier": "/mnt"}},
+    for mauvais in ({"liseuse": {**bon["liseuse"], "dossier": "/"}}, {"liseuse": {**bon["liseuse"], "dossier": "/mnt"}}, {"liseuse": {**bon["liseuse"], "dossier": "/mnt/us"}},
+                    {"liseuse": {**bon["liseuse"], "dossier": "/mnt/us/documents/"}},
                     {"liseuse": {**bon["liseuse"], "dossier": "/mnt/us/../.."}}, {"liseuse": {**bon["liseuse"], "port": 0}},
                     {"liseuse": {**bon["liseuse"], "host": "a b; rm"}}, {"titre_foyer": ""}, {"scrutation_secondes": 2},
                     {"liseuse": {**bon["liseuse"], "dossier": "/mnt/us/documents/Urgence; rm -rf x"}}):
