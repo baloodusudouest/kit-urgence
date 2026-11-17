@@ -323,3 +323,12 @@ def test_le_livre_des_papiers_est_la_avant_le_premier_depot(ecran, jeu, monkeypa
     ecran.post("/api/generer")
     cinq = next(l for l in ecran.get("/api/livres").json()["livres"] if l["numero"] == "05")
     assert cinq["present"] and cinq["attente"] is None and cinq["chiffre"]
+
+
+def test_254_reordonnancement_interrompu_repris(tmp_path, monkeypatch):
+    """2.5.4 (audit du 17/11/2026) : un papier resté sous son nom provisoire retrouve son nom."""
+    from app import ecrits
+    monkeypatch.setattr(ecrits, "PAPIERS", tmp_path)
+    (tmp_path / ".ordre-001--02-carte-vitale.pdf").write_bytes(b"%PDF")
+    assert ecrits.reprendre_ordre_interrompu() == 1
+    assert (tmp_path / "02-carte-vitale.pdf").read_bytes() == b"%PDF"

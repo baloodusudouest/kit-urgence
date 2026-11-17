@@ -163,6 +163,12 @@ def _scrutation() -> None:
 
 @app.on_event("startup")
 def _demarrage() -> None:
+    try:                                   # 2.5.4 : réordonnancement des papiers coupé par un arrêt
+        n = ecrits.reprendre_ordre_interrompu()
+        if n:
+            log.warning("%s papier(s) remis sous leur nom après un réordonnancement interrompu", n)
+    except OSError:
+        log.exception("Reprise du réordonnancement des papiers impossible")
     sessions()                                   # refuse de démarrer sans mot de passe
     if not jeton():
         log.warning("API_TOKEN est vide : Home Assistant et carnet ne pourront rien lancer "

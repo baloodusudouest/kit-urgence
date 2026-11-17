@@ -1,5 +1,8 @@
 # Changelog — kit-urgence
 
+## 2.5.4 — 2026-11-17 (corrections de l'audit, suite)
+- Réordonner les papiers : le nom d'origine reste dans le nom provisoire, et un réordonnancement coupé par un arrêt est repris au démarrage (avant, les papiers restaient cachés et sortaient du livre sans le dire).
+
 ## 2.5.3 — 17 novembre 2026 (connexion plus sûre)
 - **Connexion plus sûre** (audit du 17/11/2026, même correctif dans toutes les applis maison) :
   - un cookie portant un caractère non ASCII donnait une erreur 500 sur toute l'API ; il est maintenant simplement refusé ;

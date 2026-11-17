@@ -448,6 +448,17 @@ def deposer_papier(nom: str, contenu: bytes, piece: str | None = None) -> str:
     return nom
 
 
+def reprendre_ordre_interrompu() -> int:
+    """2.5.4 : remet sous leur nom d'origine les papiers d'un réordonnancement coupé en deux (coupure de courant)."""
+    n = 0
+    for p in sorted(PAPIERS.glob(".ordre-*--*")) if PAPIERS.is_dir() else []:
+        cible = PAPIERS / p.name.split("--", 1)[1]
+        if not cible.exists():
+            p.replace(cible)
+            n += 1
+    return n
+
+
 def ordonner_papiers(noms: list[str]) -> None:
     """Réécrit les numéros en tête des noms pour que l'ordre du livre soit celui demandé."""
     docs = _plats()
@@ -457,7 +468,7 @@ def ordonner_papiers(noms: list[str]) -> None:
     par_nom = {p.name: p for p in docs}
     provisoires = []
     for i, nom in enumerate(noms, start=1):          # deux temps : aucun nom ne peut en écraser un autre
-        tmp = PAPIERS / f".ordre-{i:03d}{par_nom[nom].suffix}"
+        tmp = PAPIERS / f".ordre-{i:03d}--{nom}"     # 2.5.4 : le nom d'origine reste dans le nom provisoire
         par_nom[nom].replace(tmp)
         provisoires.append((tmp, f"{i:02d}-{_PREFIXE.sub('', nom)}"))
     for tmp, final in provisoires:
