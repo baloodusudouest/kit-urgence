@@ -81,7 +81,7 @@
       <div class="flex items-end"><Button type="submit" disabled={attente || d.lecture_seule}>Enregistrer</Button></div>
     </form>
     {#if message}<p class="mt-2 text-sm" role="status" id="message">{message}</p>{/if}
-    <p class="mt-4 text-sm">Mot de passe des papiers : {d.mot_de_passe_papiers_probleme ? `${d.mot_de_passe_papiers_probleme} — le livre des papiers n'est pas fabriqué` : 'réglé dans la stack'}.</p>
+    <p class="mt-4 text-sm">Mot de passe des papiers : {d.mot_de_passe_papiers_probleme ? `${d.mot_de_passe_papiers_probleme} — le livre des papiers n'est pas fabriqué` : d.mot_de_passe_papiers_avertissement ? `réglé dans la stack, mais ${d.mot_de_passe_papiers_avertissement} (le livre des papiers est fabriqué et chiffré quand même)` : 'réglé dans la stack'}.</p>
     <p class="mt-1 text-sm text-muted-foreground">Le mot de passe des papiers ne s'affiche pas et ne se change pas ici : il vit dans la stack, et sur la fiche manuscrite rangée à part.</p>
   </section>
 

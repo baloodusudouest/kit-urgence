@@ -20,7 +20,7 @@ from . import maison
 DATA = Path(os.environ.get("KIT_DATA", "/data"))
 STATE = Path(os.environ.get("KIT_STATE", "/state"))
 ASSETS = Path(os.environ.get("KIT_ASSETS", "/app/assets"))
-PAPIERS_MIN = 12   # 2.5.7 (audit, M45) : longueur minimale du mot de passe des papiers
+PAPIERS_MIN = 12   # 2.5.7 (audit, M45) ; 2.6.1 : longueur conseillée seulement (plus court : avertissement)
 
 
 @dataclass
@@ -48,14 +48,20 @@ class Config:
     @property
     def papiers_probleme(self) -> str:
         """Pourquoi le livre des papiers ne peut pas être chiffré ("" : rien ne l'empêche).
-        2.5.7 (M45) : un mot de passe trop court est refusé comme un mot de passe absent ;
-        le reste du kit démarre et se fabrique quand même."""
-        mdp = self.papiers_password
-        if not mdp:
+        2.6.1 (choix de Julien) : seul un mot de passe absent empêche le livre ; un mot de passe court
+        ne donne qu'un avertissement (`papiers_avertissement`)."""
+        if not self.papiers_password:
             return "le mot de passe des papiers est absent de la stack (PAPIERS_PASSWORD)"
-        if len(mdp) < PAPIERS_MIN:
-            return (f"le mot de passe des papiers (PAPIERS_PASSWORD) est trop court : "
-                    f"{PAPIERS_MIN} caractères au moins")
+        return ""
+
+    @property
+    def papiers_avertissement(self) -> str:
+        """2.6.1 : mot de passe présent mais court ("" sinon). Le livre est fabriqué et chiffré quand même ;
+        rien n'est proposé au retrait à cause de la longueur."""
+        mdp = self.papiers_password
+        if mdp and len(mdp) < PAPIERS_MIN:
+            return (f"mot de passe des papiers court ({len(mdp)} caractères) : "
+                    f"{PAPIERS_MIN} au moins conseillés")
         return ""
 
 

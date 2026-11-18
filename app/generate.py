@@ -206,9 +206,11 @@ def generer(cfg: Config, forcer: bool = False) -> dict:
     # 05 : papiers chiffrés (le mot de passe fait partie de l'empreinte, sans être stocké)
     docs = papiers.sources(DATA / "papiers")
     if docs:
-        if cfg.papiers_probleme:            # 2.5.7 (M45) : absent ou trop court, dit en clair
+        if cfg.papiers_probleme:            # mot de passe absent : livre non fabriqué, dit en clair
             avert.append(f"05 – Papiers non généré : {cfg.papiers_probleme}.")
         else:
+            if cfg.papiers_avertissement:   # 2.6.1 : court, fabriqué quand même
+                avert.append(f"05 – Papiers : {cfg.papiers_avertissement}.")
             attendus[NOM_05] = {
                 "entree": entree_papiers(cfg, docs),
                 "construire": lambda c: papiers.construire(

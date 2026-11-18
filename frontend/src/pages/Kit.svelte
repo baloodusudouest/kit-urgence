@@ -67,6 +67,7 @@
               {#if l.chiffre}<Lock class="size-4 text-muted-foreground" aria-label="chiffré" />{/if}</span>
             <span class="block text-sm text-muted-foreground">{l.quoi}</span>
             {#if !l.present && !l.papier}<span class="mt-1 block text-sm font-medium">{l.attente || 'Pas encore fabriqué'}</span>{/if}
+            {#if l.avertissement}<span class="mt-1 flex items-center gap-1.5 text-sm font-medium"><TriangleAlert class="size-4" aria-hidden="true" />{l.avertissement}</span>{/if}
             {#if l.echec}<span class="mt-1 flex items-center gap-1.5 text-sm font-medium"><TriangleAlert class="size-4" aria-hidden="true" />Dernière fabrication refusée : {l.echec}</span>{/if}
             {#if l.va_disparaitre}<span class="mt-1 flex items-center gap-1.5 text-sm font-medium"><TriangleAlert class="size-4" aria-hidden="true" />N'a plus de source : voir « À traiter »</span>{/if}
           </span>

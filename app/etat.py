@@ -148,6 +148,8 @@ def livres(cfg: Config) -> list[dict]:
             "fabrique_le": (registre.get(nom) or {}).get("date"),
             "echec": echecs.get(nom), "va_disparaitre": nom in disparitions,
             "chiffre": nom == generate.NOM_05,
+            # 2.6.1 : mot de passe des papiers court, livre fabriqué quand même
+            "avertissement": (cfg.papiers_avertissement or None) if nom == generate.NOM_05 else None,
             # Pourquoi le livre des papiers n'existe pas encore, dit en clair
             "attente": None if chemin.exists() or nom != generate.NOM_05 else (
                 "Aucun papier déposé : dépose-les ici, puis « Fabriquer »." if not papiers.sources(DATA / "papiers")
@@ -307,4 +309,5 @@ def reglages(cfg: Config) -> dict:
                         "dossier": cfg.kindle.dossier},
             "scrutation_secondes": cfg.scrutation_secondes,
             "mot_de_passe_papiers": bool(cfg.papiers_password),
-            "mot_de_passe_papiers_probleme": cfg.papiers_probleme}
+            "mot_de_passe_papiers_probleme": cfg.papiers_probleme,
+            "mot_de_passe_papiers_avertissement": cfg.papiers_avertissement}

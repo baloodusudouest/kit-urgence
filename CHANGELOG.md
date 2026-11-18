@@ -1,5 +1,10 @@
 # Changelog — kit-urgence
 
+## 2.6.1 — 18 novembre 2026 (mot de passe court : avertissement seulement)
+- **Mot de passe des papiers court (moins de 12 caractères)** : choix de Julien, le livre des papiers est de nouveau **fabriqué et chiffré comme avant** ; l'écran avertit seulement (Réglages, livre 05, avertissements : « mot de passe des papiers court (N caractères) : 12 au moins conseillés »). Rien n'est proposé au retrait à cause de la longueur. Remplace le refus de la 2.5.7 (M45).
+- Mot de passe absent : inchangé (livre des papiers non fabriqué, dit en clair).
+- Gardés de la 2.5.7 : l'empreinte lente et salée (PBKDF2) et la reprise des anciennes empreintes au premier démarrage. Un livre des papiers déjà fait avec un mot de passe court en 2.5.6 n'est ni refait ni proposé au retrait après la mise à jour (test).
+
 ## 2.6.0 — 18 novembre 2026 (santé des tâches de fond)
 - **`/health` dit l'état des tâches de fond** (module commun `maison.py`, socle 0.9.1) ; les anciens champs (`ok`, `version`) ne changent pas. Nouveaux champs : `version_socle`, `taches`, `copie_base`.
 - Tâches suivies : **scrutation** (régulière, toutes les `scrutation_secondes` des Réglages, 15 s au moins ; 60 s par défaut), **fabrication** (à la demande : fabrication des livres, par Home Assistant, carnet, l'écran ou au démarrage) et **livraison** (à la demande : envoi sur la liseuse). La livraison qui suit l'apparition de la liseuse a sa propre tâche : un envoi long ne fait pas croire que la scrutation est bloquée. Une livraison refusée en lecture seule n'est pas comptée comme ratée.

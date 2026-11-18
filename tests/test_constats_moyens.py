@@ -30,29 +30,7 @@ def test_un_qpdf_qui_ne_repond_pas_fait_echouer_le_controle(jeu, monkeypatch):
         controle.papiers(livre, MDP_PAPIERS, 1)
 
 
-# ---------------------------------------------------------------- M45 : mot de passe trop court
-
-def test_un_mot_de_passe_des_papiers_trop_court_est_refuse_sans_arreter_le_reste(jeu, monkeypatch):
-    monkeypatch.setenv("PAPIERS_PASSWORD", "court-11car")          # 11 caractères
-    etat = generate.generer(config.load())
-    assert generate.NOM_05 not in etat["livres"]
-    assert generate.NOM_00 in etat["livres"] and generate.NOM_02 in etat["livres"]
-    assert any("trop court" in a and "12 caractères" in a for a in etat["avertissements"])
-
-
-def test_l_ecran_dit_que_le_mot_de_passe_des_papiers_est_trop_court(jeu, monkeypatch):
-    monkeypatch.setenv("PAPIERS_PASSWORD", "court-11car")
-    main.ETAT.clear()
-    brancher_liseuse(monkeypatch)
-    with TestClient(main.app) as c:                                 # l'appli démarre quand même
-        assert c.post("/api/connexion", json={"mot_de_passe": MDP}).status_code == 200
-        reglages = c.get("/api/reglages").json()
-        assert "trop court" in reglages["mot_de_passe_papiers_probleme"]
-        livres = c.get("/api/livres").json()
-        papiers = next(l for l in (livres["livres"] if isinstance(livres, dict) else livres)
-                       if l["fichier"] == generate.NOM_05)
-        assert "trop court" in papiers["attente"]
-    main.ETAT.clear()
+# M45, mot de passe trop court : refus remplacé en 2.6.1 par un avertissement (tests/test_mot_de_passe_court.py)
 
 
 # ---------------------------------------------------------------- M45 : empreinte lente et salée
