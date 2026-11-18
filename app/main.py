@@ -42,6 +42,13 @@ _PRIVE: contextvars.ContextVar[bool] = contextvars.ContextVar("prive", default=F
 
 app = FastAPI(title="kit-urgence", version=__version__, docs_url=None, redoc_url=None)
 
+# 2.6.0 : tâches de fond suivies dans /health (maison.TACHES, socle 0.9.0 ; un seul worker uvicorn).
+TACHE_SCRUTATION = "scrutation"     # régulière : recherche de la liseuse, toutes les scrutation_secondes (15 s au moins)
+TACHE_FABRICATION = "fabrication"   # à la demande : fabrication des livres
+TACHE_LIVRAISON = "livraison"       # à la demande : envoi des livres sur la liseuse
+maison.TACHES.declarer(TACHE_FABRICATION, type="demande")
+maison.TACHES.declarer(TACHE_LIVRAISON, type="demande")
+
 
 def jeton() -> str:
     """Jeton de Home Assistant (API_TOKEN). Obligatoire : sans lui, les adresses à jeton restent fermées."""
@@ -112,13 +119,15 @@ def _generer_si_besoin(cfg: config.Config, forcer: bool = False) -> None:
     e = status.read()
     if forcer or not e.get("version_nas") or e.get("sources") != generate.sha_sources(cfg):
         log.info("Génération du kit…")
-        generate.generer(cfg)
+        with maison.TACHES.tour(TACHE_FABRICATION):
+            generate.generer(cfg)
 
 
 def _generer(cfg: config.Config, forcer: bool = True) -> dict:
     with _TRAVAIL:
         try:
-            return generate.generer(cfg, forcer=forcer)
+            with maison.TACHES.tour(TACHE_FABRICATION):
+                return generate.generer(cfg, forcer=forcer)
         except Exception as exc:  # noqa: BLE001 — l'erreur est montrée à l'écran et à Home Assistant
             log.exception("Échec de la génération")
             return status.update(derniere_erreur=f"{status.now()} : {exc}")
@@ -129,7 +138,9 @@ def _session_kindle(cfg: config.Config) -> dict:
     with _TRAVAIL:
         try:
             _generer_si_besoin(cfg)
-            return sync.livrer(cfg)
+            exiger_ecriture("sur la liseuse")    # 2.6.0 : un refus (lecture seule) n'est pas une livraison ratée
+            with maison.TACHES.tour(TACHE_LIVRAISON):
+                return sync.livrer(cfg)
         except LectureSeule:
             raise
         except Exception as exc:  # noqa: BLE001 — l'erreur est remontée à HA
@@ -137,28 +148,40 @@ def _session_kindle(cfg: config.Config) -> dict:
             return status.update(derniere_erreur=f"{status.now()} : {exc}")
 
 
-def _scrutation() -> None:
-    """Détecte l'apparition de la liseuse (port SSH ouvert) et livre une fois par présence."""
-    deja_livre = False
-    dernier_vu = 0.0
-    while True:
-        cfg = config.load()
-        try:
+def _periode_scrutation(cfg: config.Config) -> int:
+    return max(15, cfg.scrutation_secondes)
+
+
+def _tour_de_scrutation(cfg: config.Config, memoire: dict) -> None:
+    """Un tour de scrutation. 2.6.0 : la détection est suivie comme tâche régulière « scrutation » ; la
+    livraison qui peut suivre a sa propre tâche (« livraison ») : un envoi long ne fait pas croire à un blocage.
+    `memoire` garde d'un tour à l'autre `deja_livre` et `dernier_vu`."""
+    maison.TACHES.declarer(TACHE_SCRUTATION, _periode_scrutation(cfg))   # l'intervalle se change dans Réglages
+    try:
+        with maison.TACHES.tour(TACHE_SCRUTATION):
             joignable = sync.port_ouvert(cfg)
             if joignable != status.read().get("kindle_joignable"):
                 status.update(kindle_joignable=joignable)
                 log.info("Liseuse %s", "joignable" if joignable else "hors ligne")
-            if joignable and time.monotonic() - dernier_vu > 3600:     # « vue le » : une écriture par heure au plus
+            if joignable and time.monotonic() - memoire["dernier_vu"] > 3600:   # « vue le » : une écriture par heure au plus
                 status.update(kindle_vu_le=status.now())
-                dernier_vu = time.monotonic()
-            if joignable and not deja_livre and not lecture_seule():
-                e = _session_kindle(cfg)
-                deja_livre = e.get("derniere_erreur") is None
-            if not joignable:
-                deja_livre = False
-        except Exception:  # noqa: BLE001
-            log.exception("Erreur de scrutation")
-        time.sleep(max(15, cfg.scrutation_secondes))
+                memoire["dernier_vu"] = time.monotonic()
+        if joignable and not memoire["deja_livre"] and not lecture_seule():
+            e = _session_kindle(cfg)
+            memoire["deja_livre"] = e.get("derniere_erreur") is None
+        if not joignable:
+            memoire["deja_livre"] = False
+    except Exception:  # noqa: BLE001
+        log.exception("Erreur de scrutation")
+
+
+def _scrutation() -> None:
+    """Détecte l'apparition de la liseuse (port SSH ouvert) et livre une fois par présence."""
+    memoire = {"deja_livre": False, "dernier_vu": 0.0}
+    while True:
+        cfg = config.load()
+        _tour_de_scrutation(cfg, memoire)
+        time.sleep(_periode_scrutation(cfg))
 
 
 @app.on_event("startup")
@@ -189,14 +212,25 @@ def _demarrage() -> None:
             log.exception("Génération initiale impossible")
             status.update(derniere_erreur=f"{status.now()} : {exc}")
     if not os.environ.get("KIT_SANS_SCRUTATION"):
+        maison.TACHES.declarer(TACHE_SCRUTATION, _periode_scrutation(cfg))
         threading.Thread(target=_scrutation, daemon=True, name="scrutation").start()
 
 
 # ================================================================ sans clé
 
+def _session_ok(request: Request) -> bool:
+    try:
+        return sessions().connecte(request.cookies)
+    except SystemExit:                   # mot de passe absent : l'appli n'aurait pas démarré
+        return False
+
+
 @app.get("/health")
-def health() -> dict:
-    return {"ok": True, "version": __version__}
+def health(request: Request) -> dict:
+    """2.6.0 : + version_socle, taches, copie_base (null : le kit n'a pas de base SQLite) ; messages d'erreur
+    des tâches seulement avec le jeton commun (MAISON_JETON) ou une session."""
+    return {"ok": True, "version": __version__,
+            **maison.sante(request, jeton_commun=maison.jetons(), session_ok=_session_ok(request))}
 
 
 @app.get("/status")

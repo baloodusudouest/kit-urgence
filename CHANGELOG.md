@@ -1,5 +1,13 @@
 # Changelog — kit-urgence
 
+## 2.6.0 — 18 novembre 2026 (santé des tâches de fond)
+- **`/health` dit l'état des tâches de fond** (module commun `maison.py`, socle 0.9.1) ; les anciens champs (`ok`, `version`) ne changent pas. Nouveaux champs : `version_socle`, `taches`, `copie_base`.
+- Tâches suivies : **scrutation** (régulière, toutes les `scrutation_secondes` des Réglages, 15 s au moins ; 60 s par défaut), **fabrication** (à la demande : fabrication des livres, par Home Assistant, carnet, l'écran ou au démarrage) et **livraison** (à la demande : envoi sur la liseuse). La livraison qui suit l'apparition de la liseuse a sa propre tâche : un envoi long ne fait pas croire que la scrutation est bloquée. Une livraison refusée en lecture seule n'est pas comptée comme ratée.
+- Les messages d'erreur des tâches ne sortent qu'avec le jeton commun (`MAISON_JETON`) ou une session ouverte ; `API_TOKEN` (Home Assistant) ne les ouvre pas.
+- Copie des bases : aucune (le kit n'a pas de base SQLite) ; `copie_base` vaut `null`.
+- Comportement inchangé : une erreur de scrutation est toujours notée au journal et la boucle continue ; une fabrication ou une livraison ratée remplit toujours `derniere_erreur`.
+- Se déploie par-dessus la 2.5.7 (pas encore déployée) : les remarques de la 2.5.7 valent toujours.
+
 ## 2.5.7 — 18 novembre 2026 (constats moyens de l'audit)
 - **M43** : délais maximaux sur pandoc (300 s par livre) et qpdf (300 s pour fusionner et chiffrer, 60 s pour rouvrir le livre des papiers) ; un outil qui ne finit pas est arrêté, le livre est noté en échec (« fabrication arrêtée : plus de … s ») et l'ancien reste. Le canal SSH avait déjà son délai (2.5.2).
 - **M45** : `PAPIERS_PASSWORD` doit faire 12 caractères au moins ; plus court, le livre des papiers n'est pas fabriqué et l'écran le dit (Réglages, livre 05, avertissements), le reste du kit démarre et se fabrique ; comme pour un mot de passe absent, un livre des papiers déjà fait n'est retiré qu'après un oui à l'écran.
