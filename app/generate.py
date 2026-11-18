@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 
 import yaml
 
-from . import contacts, controle, papiers, status
+from . import config, contacts, controle, papiers, status
 from .config import ASSETS, DATA, STATE, Config
 
 TZ = ZoneInfo("Europe/Paris")
@@ -29,6 +29,8 @@ NOM_01 = "01 - Procédures maison.epub"
 NOM_02 = "02 - Contacts.epub"
 NOM_05 = "05 - Papiers (chiffré).pdf"
 NOM_PAPIER = "kit-urgence-a-imprimer.pdf"
+# 2.5.7 (audit, M43) : délais maximaux des outils, sous le verrou global du kit
+DELAI_PANDOC = 300        # secondes pour fabriquer un livre
 
 
 # ---------------------------------------------------------------- utilitaires
@@ -81,7 +83,7 @@ def epub(markdown: str, titre: str, cible: Path, ident: str) -> None:
                 "--metadata", f"identifier=urn:kit-urgence:{ident}",
                 "--metadata", "author=Kit d'urgence",
             ],
-            check=True, capture_output=True,
+            check=True, capture_output=True, timeout=DELAI_PANDOC,
         )
 
 
@@ -99,9 +101,18 @@ def pdf_papier(markdown: str, cible: Path) -> None:
                 "--metadata", "title=Kit d'urgence — version papier",
                 "--metadata", "lang=fr-FR",
             ],
-            check=True, capture_output=True,
+            check=True, capture_output=True, timeout=DELAI_PANDOC,
         )
         HTML(filename=str(html)).write_pdf(str(cible))
+
+
+def _raison(exc: Exception) -> str:
+    """Raison d'un échec de fabrication, dite en clair."""
+    if isinstance(exc, controle.Echec):
+        return str(exc)
+    if isinstance(exc, subprocess.TimeoutExpired):
+        return f"fabrication arrêtée : plus de {exc.timeout:.0f} s sans finir"
+    return f"fabrication impossible ({exc.__class__.__name__})"
 
 
 # ---------------------------------------------------------------- registre
@@ -195,12 +206,11 @@ def generer(cfg: Config, forcer: bool = False) -> dict:
     # 05 : papiers chiffrés (le mot de passe fait partie de l'empreinte, sans être stocké)
     docs = papiers.sources(DATA / "papiers")
     if docs:
-        if not cfg.papiers_password:
-            avert.append("05 – Papiers non généré : variable PAPIERS_PASSWORD absente.")
+        if cfg.papiers_probleme:            # 2.5.7 (M45) : absent ou trop court, dit en clair
+            avert.append(f"05 – Papiers non généré : {cfg.papiers_probleme}.")
         else:
             attendus[NOM_05] = {
-                "entree": sha_entrees(
-                    hashlib.sha256(cfg.papiers_password.encode()).hexdigest(), *docs),
+                "entree": entree_papiers(cfg, docs),
                 "construire": lambda c: papiers.construire(
                     DATA / "papiers", c, cfg.papiers_password),
             }
@@ -224,8 +234,7 @@ def generer(cfg: Config, forcer: bool = False) -> dict:
                               pages=len(docs) if nom == NOM_05 else None)
         except Exception as exc:  # noqa: BLE001 — un livre raté ne doit pas arrêter les autres
             tmp.unlink(missing_ok=True)
-            raison = str(exc) if isinstance(exc, controle.Echec) else f"fabrication impossible ({exc.__class__.__name__})"
-            echecs.append({"livre": nom, "raison": raison})
+            echecs.append({"livre": nom, "raison": _raison(exc)})
             if cible.exists() and ancien_reg.get(nom):
                 # L'ancien livre reste, avec son ancienne empreinte d'entrée : il sera retenté
                 nouveau_reg[nom] = ancien_reg[nom]
@@ -283,8 +292,7 @@ def generer(cfg: Config, forcer: bool = False) -> dict:
             tmp_papier.replace(cible_papier)
         except Exception as exc:  # noqa: BLE001
             tmp_papier.unlink(missing_ok=True)
-            raison = str(exc) if isinstance(exc, controle.Echec) else f"fabrication impossible ({exc.__class__.__name__})"
-            echecs.append({"livre": NOM_PAPIER, "raison": raison})
+            echecs.append({"livre": NOM_PAPIER, "raison": _raison(exc)})
             entree_papier = reg.get("__papier__", {}).get("entree") or ancien_reg.get("__papier__", {}).get("entree")
     nouveau_reg["__papier__"] = {"entree": entree_papier}
     _sauver_registre(nouveau_reg)
@@ -313,16 +321,52 @@ def instantane_papier(cfg: Config) -> dict:
     return photo
 
 
-def sha_sources(cfg: Config) -> str:
-    """Empreinte de toutes les sources, pour savoir s'il faut régénérer avant une livraison."""
+def entree_papiers(cfg: Config, docs: list[Path], ancienne: bool = False) -> str:
+    """Empreinte d'entrée du livre des papiers. 2.5.7 (M45) : le mot de passe y entre par son empreinte
+    lente et salée ; `ancienne` refait le calcul d'avant (SHA-256 simple) pour reprendre l'ancien registre."""
+    pw = (config.empreinte_papiers_ancienne if ancienne else config.empreinte_papiers)(cfg.papiers_password)
+    return sha_entrees(pw, *docs)
+
+
+def sha_sources(cfg: Config, ancienne: bool = False) -> str:
+    """Empreinte de toutes les sources, pour savoir s'il faut régénérer avant une livraison.
+    `ancienne` : le calcul d'avant la 2.5.7 (mot de passe en SHA-256 simple), pour la reprise."""
     fichiers = []
     for sous in ("config", "procedures", "guides", "papiers"):
         d = DATA / sous
         if d.exists():
             fichiers += sorted(p for p in d.rglob("*") if p.is_file())
-    pw = hashlib.sha256(cfg.papiers_password.encode()).hexdigest()
+    pw = (config.empreinte_papiers_ancienne(cfg.papiers_password) if ancienne
+          else config.empreinte_papiers(cfg.papiers_password))
     h = hashlib.sha256(pw.encode())
     for f in fichiers:
         h.update(str(f.relative_to(DATA)).encode())
         h.update(f"{f.stat().st_size}:{f.stat().st_mtime_ns}".encode())
     return h.hexdigest()
+
+
+def reprendre_empreintes_anciennes(cfg: Config) -> int:
+    """2.5.7 (M45), au démarrage : les empreintes rapides d'avant (registre du livre des papiers, sources,
+    essai en vrai) sont relues une fois et réécrites en empreintes lentes et salées. Sans cela, le livre
+    des papiers serait refait (nouvelle date, renvoi à la liseuse) et l'essai en vrai redemandé.
+    Retourne le nombre d'empreintes réécrites."""
+    from .config import empreinte_essai_ancienne
+    n = 0
+    mdp = cfg.papiers_password
+    reg = _registre()
+    docs = papiers.sources(DATA / "papiers")
+    if mdp and docs and NOM_05 in reg and reg[NOM_05].get("entree") == entree_papiers(cfg, docs, ancienne=True):
+        reg[NOM_05] = {**reg[NOM_05], "entree": entree_papiers(cfg, docs)}
+        _sauver_registre(reg)
+        n += 1
+    etat = status.read()
+    changes = {}
+    if etat.get("sources") and etat.get("sources") == sha_sources(cfg, ancienne=True):
+        changes["sources"] = sha_sources(cfg)
+    essai = etat.get("essai") or {}
+    if mdp and essai.get("mot_de_passe") and essai.get("mot_de_passe") == empreinte_essai_ancienne(mdp):
+        changes["essai"] = {**essai, "mot_de_passe": config.empreinte_papiers(mdp)}
+    if changes:
+        status.update(**changes)
+        n += len(changes)
+    return n

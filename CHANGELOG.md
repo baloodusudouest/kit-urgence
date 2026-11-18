@@ -1,5 +1,11 @@
 # Changelog — kit-urgence
 
+## 2.5.7 — 18 novembre 2026 (constats moyens de l'audit)
+- **M43** : délais maximaux sur pandoc (300 s par livre) et qpdf (300 s pour fusionner et chiffrer, 60 s pour rouvrir le livre des papiers) ; un outil qui ne finit pas est arrêté, le livre est noté en échec (« fabrication arrêtée : plus de … s ») et l'ancien reste. Le canal SSH avait déjà son délai (2.5.2).
+- **M45** : `PAPIERS_PASSWORD` doit faire 12 caractères au moins ; plus court, le livre des papiers n'est pas fabriqué et l'écran le dit (Réglages, livre 05, avertissements), le reste du kit démarre et se fabrique ; comme pour un mot de passe absent, un livre des papiers déjà fait n'est retiré qu'après un oui à l'écran.
+- **M45** : l'empreinte du mot de passe des papiers gardée sur disque (registre des livres, état, essai en vrai) est lente et salée (PBKDF2, 200 000 tours, sel propre à l'installation dans `/state/sel-papiers`) au lieu d'un SHA-256 simple. Au premier démarrage, les anciennes empreintes sont relues puis réécrites : le livre des papiers n'est pas refait et l'essai en vrai n'est pas redemandé.
+- `maison.py` du socle 0.8.2 (audit M3) : réglages secrets reconnus par mots, adresse avec identifiant écartée, champ `ecartes` dans la sauvegarde (noms seulement).
+
 ## 2.5.6 — 18 novembre 2026 (cookies Secure)
 - **Cookies `Secure` en https** (audit du 17/11/2026, même correctif dans toutes les applis maison) : ouverte en https (directement, derrière Tailscale Serve qui le dit par `X-Forwarded-Proto`, ou d'après l'origine de la page), l'appli pose ses cookies de session avec l'attribut `Secure` : ils ne partent jamais en clair. En http (adresse locale), rien ne change.
 - `entrypoint.sh` refuse de lancer l'appli en root quand `/data` appartient à root (dossier créé par Docker) et dit le remède ; dépannage seulement : `MAISON_ROOT_ACCEPTE=oui`.

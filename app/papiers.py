@@ -9,9 +9,12 @@ from pathlib import Path
 
 import img2pdf
 
+from .config import PAPIERS_MIN
+
 EXT_IMG = {".jpg", ".jpeg", ".png"}
 EXT_PDF = {".pdf"}
 A4 = (img2pdf.mm_to_pt(210), img2pdf.mm_to_pt(297))
+DELAI_QPDF = 300   # 2.5.7 (audit, M43) : secondes au plus pour fusionner et chiffrer les scans
 
 
 def sources(dossier: Path) -> list[Path]:
@@ -32,6 +35,8 @@ def construire(dossier: Path, sortie: Path, mot_de_passe: str) -> int:
         return 0
     if not mot_de_passe:
         raise RuntimeError("PAPIERS_PASSWORD absent : le livre 05 n'est pas généré en clair.")
+    if len(mot_de_passe) < PAPIERS_MIN:          # 2.5.7 (M45)
+        raise RuntimeError(f"PAPIERS_PASSWORD trop court ({PAPIERS_MIN} caractères au moins) : le livre 05 n'est pas généré.")
     layout = img2pdf.get_layout_fun(A4, fit=img2pdf.FitMode.into)
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
@@ -46,7 +51,7 @@ def construire(dossier: Path, sortie: Path, mot_de_passe: str) -> int:
         fusion = tmp / "fusion.pdf"
         subprocess.run(
             ["qpdf", "--empty", "--pages", *map(str, pdfs), "--", str(fusion)],
-            check=True, capture_output=True,
+            check=True, capture_output=True, timeout=DELAI_QPDF,
         )
         # Mot de passe passé par fichier d'arguments (mode 600) pour ne pas
         # apparaître dans la liste des processus.
@@ -57,5 +62,5 @@ def construire(dossier: Path, sortie: Path, mot_de_passe: str) -> int:
             f.write("\n".join([
                 "--encrypt", mot_de_passe, owner, "256", "--", str(fusion), str(sortie),
             ]))
-        subprocess.run(["qpdf", f"@{args}"], check=True, capture_output=True)
+        subprocess.run(["qpdf", f"@{args}"], check=True, capture_output=True, timeout=DELAI_QPDF)
     return len(docs)

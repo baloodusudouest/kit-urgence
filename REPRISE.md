@@ -5,6 +5,7 @@ Format commun des applis : dépôt `socle`, `docs/format.md`.
 
 ## Où on en est
 
+- **2.5.7** (18/11/2026, constats moyens de l'audit) : délais de pandoc/qpdf (M43) ; `PAPIERS_PASSWORD` de 12 caractères au moins, sinon seul le livre 05 n'est pas fabriqué (`Config.papiers_probleme`) ; empreinte du mot de passe des papiers en PBKDF2 salé (`config.empreinte_papiers`, sel dans `/state/sel-papiers`), anciennes empreintes réécrites au démarrage (`generate.reprendre_empreintes_anciennes`). **Avant de déployer** : vérifier que `PAPIERS_PASSWORD` de la stack fait 12 caractères ou plus, sinon le livre des papiers ne sera plus refait et sera proposé au retrait (tuile « disparition »). Jamais essayé sur la vraie installation.
 - **2.5.1** (16/11/2026) : `PUT /api/reglages` et `POST /api/restaurer` appellent `exiger_ecriture("dans les réglages du kit")` (409 en lecture seule), choix de Julien ; `Reglages.svelte` grise les champs et les boutons. Jamais essayé sur la vraie installation.
 - **2.5.0** (16/11/2026) : réglages sauvegardés et restaurés ; anciens noms retirés. Module `app/maison.py` au contrat 2 (copie du socle, ne pas le modifier ici).
   - Réglages d'usage : ceux de l'écran Réglages, gardés dans `config/config.yaml` (aucun n'était dans la stack, donc aucune reprise de variable). `app/sauvegarde.py` les présente à plat (`actuels`, `corps_ecran`) et tient la liste `EXCLUS` (utilisateur SSH, papiers, clé SSH, mots de passe, contacts).

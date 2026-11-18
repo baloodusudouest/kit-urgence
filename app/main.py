@@ -170,6 +170,12 @@ def _demarrage() -> None:
     except OSError:
         log.exception("Reprise du réordonnancement des papiers impossible")
     sessions()                                   # refuse de démarrer sans mot de passe
+    try:                                   # 2.5.7 (M45) : anciennes empreintes rapides réécrites une fois
+        n = generate.reprendre_empreintes_anciennes(config.load())
+        if n:
+            log.info("%s empreinte(s) du mot de passe des papiers réécrite(s) en empreinte lente", n)
+    except Exception:  # noqa: BLE001 — au pire, le livre des papiers est refait une fois
+        log.exception("Reprise des anciennes empreintes impossible")
     if not jeton():
         log.warning("API_TOKEN est vide : Home Assistant et carnet ne pourront rien lancer "
                     "(MAISON_JETON seul ne suffit pas, API_TOKEN reste obligatoire).")

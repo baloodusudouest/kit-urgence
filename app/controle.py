@@ -15,8 +15,18 @@ import zipfile
 from pathlib import Path
 
 
+DELAI_QPDF = 60     # 2.5.7 (audit, M43) : secondes au plus pour rouvrir le livre des papiers
+
+
 class Echec(Exception):
     """Le livre fabriqué n'est pas utilisable."""
+
+
+def _qpdf(args: list[str]) -> subprocess.CompletedProcess:
+    try:
+        return subprocess.run(["qpdf", *args], capture_output=True, text=True, timeout=DELAI_QPDF)
+    except subprocess.TimeoutExpired as exc:
+        raise Echec(f"le livre des papiers ne s'est pas rouvert en {DELAI_QPDF} s") from exc
 
 
 def epub(chemin: Path) -> None:
@@ -46,15 +56,14 @@ def pdf(chemin: Path) -> None:
 def papiers(chemin: Path, mot_de_passe: str, attendus: int | None = None) -> None:
     """Le livre doit refuser de s'ouvrir sans mot de passe, et s'ouvrir avec le bon."""
     pdf(chemin)
-    if subprocess.run(["qpdf", "--requires-password", str(chemin)], capture_output=True).returncode != 0:
+    if _qpdf(["--requires-password", str(chemin)]).returncode != 0:
         raise Echec("le livre des papiers s'ouvre sans mot de passe")
     with tempfile.TemporaryDirectory() as tmp:
         secret = Path(tmp) / "mdp"
         fd = os.open(secret, os.O_WRONLY | os.O_CREAT, 0o600)      # jamais dans la liste des processus
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(mot_de_passe)
-        r = subprocess.run(["qpdf", f"--password-file={secret}", "--show-npages", str(chemin)],
-                           capture_output=True, text=True)
+        r = _qpdf([f"--password-file={secret}", "--show-npages", str(chemin)])
     if r.returncode != 0:
         raise Echec("le livre des papiers ne s'ouvre pas avec le mot de passe de la stack")
     if attendus is not None and r.stdout.strip().isdigit() and int(r.stdout.strip()) < attendus:

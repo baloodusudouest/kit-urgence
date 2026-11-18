@@ -4,7 +4,6 @@ Tout ici ne fait que lire. Aucun nom de papier ne sort d'ici vers `/status` ni v
 la liste des papiers n'est donnée qu'à l'écran, derrière le mot de passe."""
 from __future__ import annotations
 
-import hashlib
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -53,10 +52,9 @@ def _iso_fichier(p: Path) -> str | None:
 
 
 def empreinte_mot_de_passe(mot_de_passe: str) -> str:
-    """Trace courte et lente à retrouver, pour dire « le mot de passe a changé depuis l'essai »."""
-    if not mot_de_passe:
-        return ""
-    return hashlib.scrypt(mot_de_passe.encode(), salt=b"kit-urgence-essai", n=2**14, r=8, p=1, dklen=16).hex()
+    """Trace lente à retrouver, pour dire « le mot de passe a changé depuis l'essai ».
+    2.5.7 (M45) : salée par le sel propre à l'installation (avant : sel fixe, le même partout)."""
+    return config.empreinte_papiers(mot_de_passe)
 
 
 # ------------------------------------------------------------------ sources
@@ -153,8 +151,8 @@ def livres(cfg: Config) -> list[dict]:
             # Pourquoi le livre des papiers n'existe pas encore, dit en clair
             "attente": None if chemin.exists() or nom != generate.NOM_05 else (
                 "Aucun papier déposé : dépose-les ici, puis « Fabriquer »." if not papiers.sources(DATA / "papiers")
-                else "Le mot de passe des papiers est absent de la stack (KIT_PAPIERS_PASSWORD) : le livre ne peut pas être chiffré."
-                if not cfg.papiers_password else "Papiers déposés : clique « Fabriquer » pour créer le livre chiffré."),
+                else f"Le livre ne peut pas être chiffré : {cfg.papiers_probleme}."
+                if cfg.papiers_probleme else "Papiers déposés : clique « Fabriquer » pour créer le livre chiffré."),
         })
     papier = generate.SORTIE_PAPIER / generate.NOM_PAPIER
     sortie.append({
@@ -308,4 +306,5 @@ def reglages(cfg: Config) -> dict:
             "liseuse": {"host": cfg.kindle.host, "port": cfg.kindle.port, "user": cfg.kindle.user,
                         "dossier": cfg.kindle.dossier},
             "scrutation_secondes": cfg.scrutation_secondes,
-            "mot_de_passe_papiers": bool(cfg.papiers_password)}
+            "mot_de_passe_papiers": bool(cfg.papiers_password),
+            "mot_de_passe_papiers_probleme": cfg.papiers_probleme}
