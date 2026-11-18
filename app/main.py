@@ -23,7 +23,7 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 
 from . import __version__, config, ecrits, etat, generate, journal, maison, sauvegarde, status, sync
-from .auth import COMMUN, DUREE, Sessions
+from .auth import COMMUN, DUREE, Sessions, en_https
 from .garde import LectureSeule, exiger_ecriture, lecture_seule, origine as origine_lecture_seule
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"),
@@ -250,14 +250,14 @@ def session(request: Request):
 
 
 @app.post("/api/connexion")
-async def connexion(corps: dict = Body(...)):
+async def connexion(request: Request, corps: dict = Body(...)):
     s = sessions()
     if not os.environ.get("KIT_SANS_ATTENTE"):
         await asyncio.sleep(s.attente())
     if not s.verifier_mot_de_passe(str(corps.get("mot_de_passe", ""))):
         raise HTTPException(401, "Mot de passe incorrect.")
     r = JSONResponse({"ok": True})
-    r.set_cookie(s.cookie, s.creer(), max_age=DUREE, httponly=True, samesite="strict")
+    r.set_cookie(s.cookie, s.creer(), max_age=DUREE, httponly=True, samesite="strict", secure=en_https(request))
     return r
 
 
