@@ -39,7 +39,8 @@ jobs:
         run: |
           # Sans mot de passe, le conteneur doit refuser de démarrer
           if timeout 30 docker run --rm -e API_TOKEN=x kit-urgence:essai >/dev/null 2>&1; then echo "a démarré sans mot de passe"; exit 1; fi
-          docker run -d --name essai -e MAISON_PASSWORD=essai-essai-essai -e API_TOKEN=x -e PAPIERS_PASSWORD=x -p 8095:8095 kit-urgence:essai
+          mkdir -p "$RUNNER_TEMP/donnees"   # dossier à un compte ordinaire, comme sur le NAS (root est refusé depuis 2.5.6)
+          docker run -d --name essai -v "$RUNNER_TEMP/donnees:/data" -e MAISON_PASSWORD=essai-essai-essai -e API_TOKEN=x -e PAPIERS_PASSWORD=x -p 8095:8095 kit-urgence:essai
           for i in $(seq 1 40); do curl -fs http://127.0.0.1:8095/health && break; sleep 1; done
           curl -fs http://127.0.0.1:8095/health
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8095/api/etat)" = 401
