@@ -275,15 +275,23 @@ def test_restaurer_les_reglages(page):
 
 
 def test_verifier_puis_livrer_depuis_connexion(page):
-    """Dernier test du module : il change l'état (le kit est livré)."""
+    """Dernier test du module : il change l'état (le kit est livré). 2.7.0 : écran commun (contrat 3), trois fiches
+    dépliées ; « Livrer » est le geste plein de la fiche Liseuse, avec son guide."""
     aller(page, "Connexion")
-    tuile(page, "Liseuse").click()
-    page.get_by_role("button", name="Vérifier").click()
-    page.locator("#rapport").wait_for()
-    page.get_by_role("button", name="Livrer").click()
-    page.locator("#message", has_text="Livraison faite").wait_for(timeout=20000)
-    page.get_by_role("button", name="Vérifier").click()
-    page.locator("#rapport", has_text="la liseuse a bien le kit").wait_for()
+    assert page.get_by_role("article").count() == 3
+    fiche = page.get_by_role("article", name="Liseuse")
+    for mot in ("Ce qui est lu", "Ce qui est écrit", "Allumer normalement", "En cas de problème"):
+        assert mot in fiche.inner_text()
+    fiche.locator("summary", has_text="Installation (une seule fois)").click()
+    assert "authorized_keys" in fiche.inner_text() and "ssh-ed25519 " in fiche.inner_text()
+    fiche.get_by_role("button", name="Vérifier").click()
+    fiche.get_by_text(re.compile("Vérifié")).wait_for()
+    assert "Répond" in fiche.inner_text()
+    fiche.get_by_role("button", name="Livrer").click()
+    fiche.locator("p[role=status]", has_text="Livraison faite").wait_for(timeout=20000)
+    fiche.get_by_text("Livraison faite et vérifiée. · Vérifié").wait_for()
+    largeur = page.evaluate("[document.documentElement.scrollWidth, window.innerWidth]")
+    assert largeur[0] <= largeur[1], largeur
     aller(page, "À traiter")
     assert tuile(page, "Liseuse pas à jour").count() == 0
     assert "à jour sur la liseuse" in page.locator("#phrase").inner_text()

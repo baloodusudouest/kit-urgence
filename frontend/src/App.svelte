@@ -10,7 +10,7 @@
   import Connexion from './pages/Connexion.svelte'
   import ATraiter from './pages/ATraiter.svelte'
   import Kit from './pages/Kit.svelte'
-  import Services from './pages/Services.svelte'
+  import Services from '$lib/services/Services.svelte'   // 2.7.0 : écran commun (contrat 3, socle 0.11.0)
   import Reglages from './pages/Reglages.svelte'
 
   const onglets = [
@@ -51,6 +51,18 @@
   }
 
   const sortir = () => (connecte = false)
+
+  // 2.7.0 : « Livrer », geste de la fiche Liseuse (route existante). Une erreur (401 compris) remonte à la fiche.
+  async function geste(service, g) {
+    if (service.id !== 'liseuse' || g.id !== 'livrer') return ''
+    try {
+      await api.post('/api/livrer')
+    } catch (e) {
+      if (e.statut === 401) sortir()
+      throw e
+    }
+    return 'Livraison faite et vérifiée.'
+  }
   onMount(verifier)
 </script>
 
@@ -99,7 +111,7 @@
           {#if page === 'kit'}
             <Kit lectureSeule={session.lecture_seule} ondeconnecte={sortir} {cible} />
           {:else if page === 'connexion'}
-            <Services lectureSeule={session.lecture_seule} ondeconnecte={sortir} />
+            <Services etiquette="Kit d'urgence" lectureSeule={session.lecture_seule} ondeconnecte={sortir} ongeste={geste} />
           {:else if page === 'reglages'}
             <Reglages {deconnecter} ondeconnecte={sortir} />
           {:else}

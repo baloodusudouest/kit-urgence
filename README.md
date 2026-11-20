@@ -72,6 +72,8 @@ Rappel le 1er du mois et en vigilance orange ou rouge : Kindle chargé → mode 
 | POST | `/synchroniser` | livraison immédiate si le Kindle répond (jeton requis) |
 | POST | `/papier/imprime` | confirme l'impression de la version papier (jeton requis) |
 | GET | `/externe/sauvegarde` | réglages d'usage du kit pour l'Anneau (jeton commun `MAISON_JETON` seul ; 404 s'il est vide) |
+| GET | `/api/maison/services` | fiches « Connexion » (contrat 3) : session du kit ou `ANNEAU_CLE` (2.7.0) |
+| POST | `/api/maison/services/{id}/verifier` | essai léger d'un service, sans écriture (au plus un toutes les 30 s) |
 
 ## Plan B (SSH hors service)
 Copier le contenu de `output/Urgence/` dans `documents/Urgence/` du Kindle par USB. Les PDF s'ouvrent aussi sans KOReader ; les EPUB nécessitent KOReader.

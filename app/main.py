@@ -225,6 +225,171 @@ def _session_ok(request: Request) -> bool:
         return False
 
 
+# ================================================================ fiches « Connexion » (2.7.0, contrat 3, socle 0.11.0)
+# Les services du kit, au format commun (maison.Services) : GET /api/maison/services, POST …/{id}/verifier.
+# Textes « lit » et « écrit » repris de l'ancien écran (pages/Services.svelte, retiré). « Vérifier » n'écrit jamais
+# chez le service ; « Livrer » (POST /api/livrer, route existante) est le geste de la fiche Liseuse.
+# L'adresse, le port et le dossier de la liseuse ne sont pas dans la stack : ils se règlent dans Réglages.
+
+def _quand(iso: str | None) -> str:
+    """« le 18/11/2026 à 14:05 » (heure du conteneur), « jamais » sans date."""
+    if not iso:
+        return "jamais"
+    try:
+        from datetime import datetime
+        d = datetime.fromisoformat(str(iso)).astimezone()
+    except ValueError:
+        return str(iso)
+    return d.strftime("le %d/%m/%Y à %H:%M")
+
+
+def _essai_liseuse() -> tuple[bool, str]:
+    """Le port SSH de KOReader répond-il ? Si oui, relit les empreintes des livres du kit sur la liseuse et les
+    compare au NAS (sync.comparer, la vérification de toujours) : rien n'est écrit sur la liseuse. Pendant une
+    fabrication ou une livraison, la comparaison n'est pas lancée (on n'attend pas le verrou)."""
+    cfg = config.load()
+    joignable = sync.port_ouvert(cfg)
+    if joignable != status.read().get("kindle_joignable"):      # comme l'ancien écran : l'état suit l'essai
+        status.update(kindle_joignable=joignable, **({"kindle_vu_le": status.now()} if joignable else {}))
+    if not joignable:
+        return False, "La liseuse ne répond pas : ouvre KOReader et démarre son serveur SSH."
+    if not _TRAVAIL.acquire(blocking=False):
+        return True, "Elle répond. Une fabrication ou une livraison est en cours : comparaison à refaire ensuite."
+    try:
+        r = sync.comparer(cfg)
+    finally:
+        _TRAVAIL.release()
+    ecarts = [f"Différents : {', '.join(r['differents'])}." if r["differents"] else "",
+              f"Absents de la liseuse : {', '.join(r['absents'])}." if r["absents"] else "",
+              f"Sur la liseuse mais plus dans le kit : {', '.join(r['en_trop'])}." if r["en_trop"] else ""]
+    if not r["differents"] and not r["absents"]:
+        return True, " ".join(x for x in [f"{len(r['identiques'])} livre(s) identiques : la liseuse a bien le kit "
+                                           "du NAS.", *ecarts] if x)
+    return True, " ".join(x for x in [f"{len(r['identiques'])} livre(s) identiques.", *ecarts] if x)
+
+
+def _essai_carnet() -> tuple[bool, str]:
+    """Lecture locale seulement : le fichier de contacts déposé par carnet (le kit ne joint pas carnet)."""
+    c = etat.connexions(config.load(), "", prive=False)["carnet"]
+    if not c["present"]:
+        return False, "Aucun contact reçu : carnet n'a encore rien déposé."
+    return True, f"{c['nombre']} contact(s) reçus {_quand(c['recus_le'])}."
+
+
+def _essai_home_assistant() -> tuple[bool, str]:
+    """Rien n'est demandé à Home Assistant (c'est lui qui appelle le kit) : on dit son dernier appel."""
+    dernier = status.read().get("dernier_appel_jeton")
+    if not dernier:
+        return True, "Jeton réglé dans la stack ; aucun appel avec jeton noté pour l'instant."
+    return True, f"Jeton réglé dans la stack ; dernier appel avec jeton {_quand(dernier)}."
+
+
+def _guide_liseuse() -> dict:
+    """Marche à suivre de la fiche Liseuse (appareil qu'on allume soi-même), reprise de l'ancien écran Connexion,
+    d'À traiter, du README, du livre 00 et du paquet Home Assistant. Ni utilisateur SSH ni mot de passe."""
+    cfg = config.load()
+    e = status.read()
+    secondes = _periode_scrutation(cfg)
+    return {
+        "reglages": [
+            {"nom": "Adresse", "valeur": f"{cfg.kindle.host}:{cfg.kindle.port}" if cfg.kindle.host
+             else "pas réglée (Réglages › Adresse de la liseuse)"},
+            {"nom": "Dossier des livres", "valeur": cfg.kindle.dossier},
+            {"nom": "Recherche de la liseuse", "valeur": f"toutes les {secondes} secondes (Réglages)"},
+            {"nom": "Vue", "valeur": _quand(e.get("kindle_vu_le"))},
+            {"nom": "Dernière livraison", "valeur": _quand(e.get("derniere_livraison"))},
+            {"nom": "Kit dessus", "valeur": "le même que sur le NAS" if e.get("a_jour")
+             else "plus ancien que celui du NAS"},
+        ],
+        "allumer": [
+            "Charger la liseuse et désactiver le mode avion.",
+            "Allumer la liseuse et ouvrir KOReader (dans la bibliothèque : KUAL, puis KOReader, puis Start KOReader).",
+            "Activer le Wi-Fi, puis dans le menu Outils › Plus d'outils › SSH, démarrer le serveur SSH "
+            "(Réseau › Serveur SSH › Démarrer selon la version de KOReader).",
+            f"La laisser allumée une minute : le kit la cherche toutes les {secondes} secondes, la voit et livre tout "
+            "seul ce qui a changé, puis relit chaque livre sur la liseuse pour vérifier. Home Assistant confirme par "
+            "« Kit d'urgence à jour sur le Kindle ».",
+            "Ensuite : couper le serveur SSH dans KOReader et remettre le mode avion.",
+        ],
+        "pannes": [
+            {"signe": "« Pas relié » : l'adresse de la liseuse n'est pas réglée",
+             "faire": ["Dans Réglages : adresse de la liseuse (IP fixe), port SSH (2222 pour le serveur SSH de "
+                       "KOReader) et dossier des livres sur la liseuse."],
+             "commandes": []},
+            {"signe": "« Ne répond pas » : la liseuse ne répond pas",
+             "faire": ["Est-elle allumée, KOReader ouvert, Wi-Fi activé, hors mode avion ? Le serveur SSH de KOReader "
+                       "est-il démarré ?",
+                       "L'adresse réglée est-elle toujours la sienne ? Sinon la corriger dans Réglages, ou réserver son "
+                       "adresse dans la box (bail DHCP statique).",
+                       "Pas vue depuis deux mois : elle est peut-être déchargée (À traiter le signale)."],
+             "commandes": []},
+            {"signe": "Elle répond, mais « Vérifier » ou « Livrer » échoue (lecture impossible)",
+             "faire": ["La clé du kit est-elle autorisée sur la liseuse ? Voir « Installation (une seule fois) ».",
+                       "La clé d'hôte de la liseuse est épinglée à la première connexion (fichier known_hosts du "
+                       "dossier d'état, KIT_STATE_DIR) : si KOReader ou la liseuse a été réinstallé, elle a changé et "
+                       "la connexion est refusée."],
+             "commandes": []},
+            {"signe": "Livraison refusée : dossier trop large",
+             "faire": ["La livraison effacerait des livres qui ne sont pas au kit. Choisir un dossier à lui "
+                       "(ex. /mnt/us/documents/Urgence) dans Réglages."],
+             "commandes": []},
+            {"signe": "La liseuse s'endort pendant l'envoi",
+             "faire": ["Un livre arrivé incomplet est effacé et l'ancien reste. La garder allumée, puis relancer "
+                       "« Livrer »."],
+             "commandes": []},
+            {"signe": "« Livrer » reste grisé",
+             "faire": ["Mode lecture seule : le kit fabrique ses livres mais n'écrit ni sur la liseuse ni dans ses "
+                       "sources. À retirer dans la stack (KIT_LECTURE_SEULE, ou MAISON_LECTURE_SEULE pour toute la "
+                       "maison) quand tout va bien."],
+             "commandes": []},
+            {"signe": "Plan B : serveur SSH hors service",
+             "faire": ["Copier le contenu de output/Urgence/ (dossier de données du kit) dans documents/Urgence/ du "
+                       "Kindle par USB. Les PDF s'ouvrent aussi sans KOReader ; les EPUB nécessitent KOReader."],
+             "commandes": []},
+        ],
+        "une_fois": [
+            {"texte": "Prérequis : un Kindle jailbreaké, avec KOReader (lancé depuis KUAL).", "commande": ""},
+            {"texte": "Kindle branché en USB, KOReader fermé, ajouter la clé du kit (la ligne ci-dessous) dans le "
+                      "fichier koreader/settings/SSH/authorized_keys de la liseuse.",
+             "commande": sync.assurer_cle()},
+            {"texte": "Donner à la liseuse une adresse fixe dans la box (bail DHCP statique), puis la noter dans "
+                      "Réglages avec le port SSH de KOReader (2222) et un dossier à lui "
+                      "(ex. /mnt/us/documents/Urgence).", "commande": ""},
+        ],
+        "note": "Rappel de Home Assistant le 1er du mois et en vigilance orange ou rouge. Le kit ne retire jamais "
+                "seul un livre de la liseuse : il attend un oui dans À traiter.",
+    }
+
+
+SERVICES = maison.Services(sauvegarde.APPLI)
+SERVICES.ajouter(
+    "liseuse", "Liseuse",
+    lit="Le kit n'y lit que les empreintes de ses propres livres : « Vérifier » relit chaque livre sur la liseuse et "
+        "le compare à celui du NAS, sans rien écrire.",
+    ecrit="Le kit y écrit ses livres, dans son dossier de la liseuse, par le serveur SSH de KOReader. « Livrer » "
+          "envoie ce qui diffère, puis relit chaque livre sur la liseuse pour vérifier.",
+    regle=lambda: bool(config.load().kindle.host),
+    reglage="Aucune variable : l'adresse de la liseuse se règle dans Réglages",
+    essai=_essai_liseuse, geste={"id": "livrer", "nom": "Livrer"},
+    derniere_ecriture=lambda: status.read().get("derniere_livraison"), guide=_guide_liseuse)
+SERVICES.ajouter(
+    "carnet", "carnet", genre="maison", cible="carnet",
+    lit="Le kit ne lit pas carnet : c'est carnet qui dépose ici les contacts du groupe Urgence, puis demande une "
+        "fabrication.",
+    ecrit="Rien : le kit n'écrit rien dans carnet.",
+    regle=lambda: bool(jeton()), reglage="KIT_API_TOKEN",
+    essai=_essai_carnet)
+SERVICES.ajouter(
+    "home-assistant", "Home Assistant",
+    lit="Le kit ne lit rien chez lui : Home Assistant lit l'état du kit sans clé (/status), et lance fabrication, "
+        "livraison et « papier imprimé » avec un jeton (/generer, /synchroniser, /papier/imprime).",
+    ecrit="Rien : le kit ne lui écrit rien.",
+    regle=lambda: bool(jeton()), reglage="KIT_API_TOKEN",
+    essai=_essai_home_assistant)
+# Monté APRÈS la garde : le dernier middleware ajouté passe en premier (sinon la garde refuserait l'Anneau).
+maison.monter_services(app, SERVICES, _session_ok)
+
+
 @app.get("/health")
 def health(request: Request) -> dict:
     """2.6.0 : + version_socle, taches, copie_base (null : le kit n'a pas de base SQLite) ; messages d'erreur
@@ -361,6 +526,7 @@ def api_fichier(nom: str):
 
 @app.get("/api/connexions")
 def api_connexions():
+    """Ancien écran Connexion (retiré en 2.7.0, remplacé par /api/maison/services). À retirer à la version suivante."""
     cfg = config.load()
     joignable = sync.port_ouvert(cfg)            # l'écran Connexion regarde pour de bon, sans attendre la scrutation
     if joignable != status.read().get("kindle_joignable"):
@@ -386,7 +552,9 @@ def api_generer():
 
 @app.post("/api/liseuse/verifier")
 def api_verifier():
-    """Compare ce qui est sur la liseuse au kit du NAS. N'écrit rien, ni là-bas ni ici."""
+    """Compare ce qui est sur la liseuse au kit du NAS. N'écrit rien, ni là-bas ni ici.
+    Ancien écran Connexion : depuis la 2.7.0, « Vérifier » de la fiche Liseuse fait la même comparaison
+    (POST /api/maison/services/liseuse/verifier). À retirer à la version suivante."""
     cfg = config.load()
     if not cfg.kindle.host:
         raise HTTPException(409, "L'adresse de la liseuse n'est pas réglée.")
@@ -406,7 +574,9 @@ def api_livrer():
     if not sync.port_ouvert(cfg):
         raise HTTPException(409, "La liseuse ne répond pas : ouvre KOReader et démarre son serveur SSH.")
     journal.noter("Kit livré sur la liseuse")
-    _session_kindle(cfg)
+    e = _session_kindle(cfg)
+    ok = not e.get("derniere_erreur")       # 2.7.0 : le geste de la fiche Liseuse sert aussi d'essai
+    SERVICES.noter("liseuse", ok, "Livraison faite et vérifiée." if ok else "Livraison ratée.")
     return etat.tuiles(config.load())
 
 

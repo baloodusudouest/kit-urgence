@@ -38,7 +38,7 @@ def test_health_porte_la_sante_sans_message_sans_jeton(client, monkeypatch):
     monkeypatch.setenv("MAISON_JETON", COMMUN)
     corps = client.get("/health").json()
     assert corps["ok"] is True and corps["version"] == __version__          # rien d'existant ne change
-    assert corps["version_socle"] == maison.VERSION_SOCLE == "0.9.1"
+    assert corps["version_socle"] == maison.VERSION_SOCLE == "0.11.0"
     assert corps["copie_base"] is None                                      # pas de base SQLite
     noms = {t["nom"]: t for t in corps["taches"]}
     assert noms["fabrication"]["type"] == "demande" and noms["livraison"]["type"] == "demande"

@@ -13,6 +13,7 @@ services:
       - MAISON_PASSWORD=${MAISON_PASSWORD}         # mot de passe commun des applis : obligatoire (12 caractères au moins)
       - MAISON_JETON=${MAISON_JETON:-}             # jeton commun : accepté en plus d'API_TOKEN (pour carnet),
                                                    # seul à ouvrir /externe/sauvegarde (l'Anneau) et à interroger l'Anneau
+      - ANNEAU_CLE=${ANNEAU_CLE:-}                 # contrat 3 : l'Anneau lit les fiches « Connexion » ; vide = porte fermée
       - MAISON_LECTURE_SEULE=${MAISON_LECTURE_SEULE:-}   # « oui » : aucune appli n'écrit ; KIT_LECTURE_SEULE l'emporte si posée
       - PAPIERS_PASSWORD=${KIT_PAPIERS_PASSWORD}   # mot de passe du livre des papiers (secret)
       - API_TOKEN=${KIT_API_TOKEN}                 # jeton de Home Assistant : obligatoire
