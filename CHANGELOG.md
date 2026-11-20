@@ -1,5 +1,9 @@
 # Changelog — kit-urgence
 
+## 2.7.1 — 20 novembre 2026 (socle 0.11.1)
+- Copies communes du socle 0.11.1 : sur une fiche « Connexion », le titre devient « Pour le relier » quand le réglage se fait dans Réglages de l'appli (et non dans la stack).
+- **Jamais essayé sur la vraie installation.**
+
 ## 2.7.0 — 20 novembre 2026 (fiches « Connexion » communes, contrat 3)
 - **Écran Connexion au format commun des applis maison** (module `app/maison.py` et interface `frontend/src/lib/services/` du socle 0.11.0, copiés tels quels, empreintes contrôlées par les tests) : trois fiches dépliées, **Liseuse**, **carnet** et **Home Assistant**, chacune avec son point d'état et son état en mots, **Ce qui est lu**, **Ce qui est écrit** (textes repris de l'ancien écran), l'âge du dernier essai et le bouton **Vérifier**, qui ne teste que son service et n'écrit rien.
 - **Liseuse** : « Vérifier » regarde si le serveur SSH de KOReader répond, puis fait la comparaison de toujours (empreintes des livres relues sur la liseuse, rien d'écrit) et la résume sous la fiche (« N livre(s) identiques : la liseuse a bien le kit du NAS. », ou les livres différents, absents, en trop). Pendant une fabrication ou une livraison, la comparaison n'est pas lancée. **Livrer** est le geste plein de la fiche (route `POST /api/livrer` inchangée ; son résultat sert d'essai). La fiche porte un **guide** : réglages lus (adresse, dossier, recherche, vue, dernière livraison, kit dessus), **Allumer normalement**, **En cas de problème** (pas réglée, ne répond pas, lecture impossible, dossier trop large, liseuse qui s'endort, lecture seule, plan B par USB) et **Installation (une seule fois)** avec la clé du kit à copier pour `koreader/settings/SSH/authorized_keys`. Repris de l'ancien écran, d'À traiter, du README, du livre 00 et du paquet Home Assistant ; pas de commande à taper (le projet n'en a pas pour la liseuse).
