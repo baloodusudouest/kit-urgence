@@ -75,3 +75,5 @@ python -m pytest -q tests/interface
 Pousser sur `main` : l'image est construite, tous les tests tournent dedans, puis l'image `ghcr.io/baloodusudouest/kit-urgence:<version>` est
 publiée sous `latest` et sous sa version (lue dans `app/__init__.py`). Dans Portainer : redéployer la stack
 en retéléchargeant l'image. Pas de Watchtower pour ce service.
+## État (22/11/2026) — 2.7.2 : barre d'onglets collée en bas sur iPhone (`App.svelte`, classes du socle 0.12.1 : `fixed inset-x-0 bottom-0 … pb-[calc(0.375rem+env(safe-area-inset-bottom))]`, `md:right-auto md:justify-start`). Jamais essayé sur la vraie installation.
+

@@ -1,5 +1,9 @@
 # Changelog — kit-urgence
 
+## 2.7.2 — 22 novembre 2026 (barre d'onglets collée en bas)
+- **iPhone : barre d'onglets collée au bord bas**, sur toute la largeur, au lieu de la pilule flottante (demande de Julien, 22/11/2026, pour toutes les applis maison ; socle 0.12.1). Le rail des PC ne change pas.
+- **Jamais essayé sur la vraie installation.**
+
 ## 2.7.1 — 20 novembre 2026 (socle 0.11.1)
 - Copies communes du socle 0.11.1 : sur une fiche « Connexion », le titre devient « Pour le relier » quand le réglage se fait dans Réglages de l'appli (et non dans la stack).
 - **Jamais essayé sur la vraie installation.**
