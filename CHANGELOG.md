@@ -1,5 +1,10 @@
 # Changelog — kit-urgence
 
+## 2.7.3 — 23 novembre 2026 (listes déroulantes lisibles en sombre)
+
+- **Listes déroulantes illisibles sur PC** (constaté par Julien dans Dîme, 23/11/2026) : la liste ouverte d'un `<select>` gardait un fond blanc tout en reprenant le texte crème de l'appli. `frontend/src/app.css` reprend le bloc du socle 0.12.2 (« Listes déroulantes (socle 0.12.2) ») : choix aux couleurs des menus, titres de groupe en gras, choix désactivés en gris.
+- Jamais essayé sur la vraie installation.
+
 ## 2.7.2 — 22 novembre 2026 (barre d'onglets collée en bas)
 - **iPhone : barre d'onglets collée au bord bas**, sur toute la largeur, au lieu de la pilule flottante (demande de Julien, 22/11/2026, pour toutes les applis maison ; socle 0.12.1). Le rail des PC ne change pas.
 - **Jamais essayé sur la vraie installation.**
